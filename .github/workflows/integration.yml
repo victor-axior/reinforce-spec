@@ -1,0 +1,29 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    env:
+      RESPX_ASSERT_ALL_CALLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: uv sync --all-extras
+      - name: Run integration tests (mocked LLM)
+        run: >
+          uv run pytest tests/integration/
+          -m integration
+          --tb=short -q

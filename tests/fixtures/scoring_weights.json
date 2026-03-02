@@ -1,0 +1,30 @@
+{
+  "default": {
+    "compliance_regulatory": 0.12,
+    "security_posture": 0.12,
+    "data_governance": 0.08,
+    "integration_interop": 0.08,
+    "scalability_performance": 0.08,
+    "operational_excellence": 0.08,
+    "testing_strategy": 0.08,
+    "vendor_risk": 0.08,
+    "cost_efficiency": 0.07,
+    "user_experience": 0.07,
+    "documentation_quality": 0.07,
+    "innovation_alignment": 0.07
+  },
+  "bank": {
+    "compliance_regulatory": 0.20,
+    "security_posture": 0.18,
+    "data_governance": 0.12,
+    "vendor_risk": 0.10,
+    "operational_excellence": 0.08,
+    "integration_interop": 0.06,
+    "scalability_performance": 0.06,
+    "testing_strategy": 0.06,
+    "cost_efficiency": 0.05,
+    "user_experience": 0.03,
+    "documentation_quality": 0.03,
+    "innovation_alignment": 0.03
+  }
+}

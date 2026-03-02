@@ -1,0 +1,20 @@
+[
+  {
+    "name": "payment_api_excellent",
+    "content": "# Payment API Specification\n\n## 1. Overview\nRESTful payment processing API compliant with PCI-DSS v4.0.\n\n## 2. Authentication\nOAuth 2.0 with PKCE flow. All tokens expire after 15 minutes.\n\n## 3. Endpoints\n- POST /v1/payments — Initiate payment\n- GET /v1/payments/{id} — Get payment status\n- POST /v1/refunds — Process refund\n\n## 4. Security\n- TLS 1.3 required\n- AES-256-GCM encryption at rest\n- Rate limit: 100 req/min per API key\n\n## 5. Error Handling\nStandard RFC 7807 problem details format.\n\n## 6. Scalability\nHorizontal scaling via stateless design. Target: 10k TPS.\n\n## 7. Monitoring\nPrometheus metrics exported on /metrics. Alert on p99 > 500ms.",
+    "spec_type": "api",
+    "expected_score_range": [4.0, 5.0]
+  },
+  {
+    "name": "minimal_spec",
+    "content": "Make a payment system.",
+    "spec_type": "srs",
+    "expected_score_range": [1.0, 2.0]
+  },
+  {
+    "name": "moderate_srs",
+    "content": "# Software Requirements Specification\n\n## Purpose\nUser management microservice for internal tooling.\n\n## Features\n- CRUD operations for users\n- Role-based access control\n- Audit trail for changes\n\n## Non-functional\n- Response time < 200ms p95\n- 99.9% uptime SLA",
+    "spec_type": "srs",
+    "expected_score_range": [2.5, 3.5]
+  }
+]

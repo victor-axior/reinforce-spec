@@ -1,0 +1,212 @@
+openapi: "3.1.0"
+info:
+  title: ReinforceSpec API
+  version: "0.1.0"
+  description: >
+    RL-optimised enterprise specification evaluator and selector.
+    Scores and selects the best spec from user-provided candidates
+    using multi-judge LLM evaluation and PPO reinforcement learning.
+  contact:
+    name: ReinforceSpec Team
+    url: https://github.com/reinforce-spec/reinforce-spec
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+paths:
+  /v1/specs:
+    post:
+      summary: Evaluate and select the best spec
+      operationId: evaluate_specs
+      tags: [specs]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvaluateRequest"
+      responses:
+        "200":
+          description: Successful selection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SelectionResponse"
+        "422":
+          description: Validation error
+
+  /v1/specs/feedback:
+    post:
+      summary: Submit feedback on a result
+      operationId: submit_feedback
+      tags: [specs]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackRequest"
+      responses:
+        "200":
+          description: Feedback accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedbackResponse"
+
+  /v1/policy/status:
+    get:
+      summary: Get RL policy status
+      operationId: policy_status
+      tags: [policy]
+      responses:
+        "200":
+          description: Current policy status
+
+  /v1/policy/train:
+    post:
+      summary: Trigger policy training
+      operationId: train_policy
+      tags: [policy]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrainRequest"
+      responses:
+        "200":
+          description: Training result
+
+  /v1/jobs/{job_id}:
+    get:
+      summary: Get background job status
+      operationId: get_job_status
+      tags: [jobs]
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job status
+        "404":
+          description: Job not found
+
+  /v1/health:
+    get:
+      summary: Liveness probe
+      operationId: health
+      tags: [health]
+      responses:
+        "200":
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /v1/health/ready:
+    get:
+      summary: Readiness probe
+      operationId: readiness
+      tags: [health]
+      responses:
+        "200":
+          description: Service readiness status
+
+components:
+  schemas:
+    EvaluateRequest:
+      type: object
+      required: [candidates]
+      properties:
+        candidates:
+          type: array
+          minItems: 2
+          items:
+            $ref: "#/components/schemas/SpecInput"
+        customer_type:
+          type: string
+          nullable: true
+        selection_method:
+          type: string
+          default: hybrid
+        request_id:
+          type: string
+          nullable: true
+        description:
+          type: string
+          maxLength: 2000
+
+    SpecInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+        spec_type:
+          type: string
+          default: ""
+        source_model:
+          type: string
+          default: ""
+        metadata:
+          type: object
+
+    FeedbackRequest:
+      type: object
+      required: [request_id]
+      properties:
+        request_id:
+          type: string
+        rating:
+          type: number
+          minimum: 1.0
+          maximum: 5.0
+          nullable: true
+        comment:
+          type: string
+          maxLength: 2000
+          nullable: true
+        spec_id:
+          type: string
+          nullable: true
+
+    FeedbackResponse:
+      type: object
+      properties:
+        feedback_id:
+          type: string
+        status:
+          type: string
+          default: accepted
+
+    TrainRequest:
+      type: object
+      properties:
+        n_steps:
+          type: integer
+          minimum: 1
+          nullable: true
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        version:
+          type: string
+        uptime_seconds:
+          type: number
+          nullable: true
+
+    SelectionResponse:
+      type: object
+      description: Full selection response with ranked candidates

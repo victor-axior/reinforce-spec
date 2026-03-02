@@ -1,0 +1,20 @@
+[
+  {
+    "name": "low_anchor",
+    "content": "Make a thing.",
+    "expected_scores": {
+      "compliance_regulatory": 1.0,
+      "security_posture": 1.0,
+      "documentation_quality": 1.0
+    }
+  },
+  {
+    "name": "high_anchor",
+    "content": "# Comprehensive Enterprise Platform\n\n## Compliance\nFully compliant with SOC 2 Type II, ISO 27001, PCI-DSS v4.0, GDPR, CCPA.\n\n## Security\n- Zero-trust architecture with mTLS between all services\n- HSM-backed key management\n- Automated vulnerability scanning (SAST/DAST/SCA)\n- Incident response plan with 15-minute RTO\n\n## Documentation\n- OpenAPI 3.1 spec with examples for every endpoint\n- Architecture decision records (ADRs) for all significant choices\n- Runbooks for every operational procedure\n- Automated documentation generation from code annotations",
+    "expected_scores": {
+      "compliance_regulatory": 5.0,
+      "security_posture": 5.0,
+      "documentation_quality": 5.0
+    }
+  }
+]
