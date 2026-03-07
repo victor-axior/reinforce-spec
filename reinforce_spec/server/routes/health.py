@@ -7,10 +7,14 @@ Endpoints:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, Request
 
-from reinforce_spec.client import ReinforceSpec
 from reinforce_spec.server.schemas import HealthResponse
+
+if TYPE_CHECKING:
+    from reinforce_spec.client import ReinforceSpec
 
 router = APIRouter(tags=["health"])
 

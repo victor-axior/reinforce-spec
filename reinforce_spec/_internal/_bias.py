@@ -130,9 +130,12 @@ class BiasDetector:
         lengths = [float(x) for x in self._session_lengths[-min_samples:]]
 
         mean_s = statistics.mean(scores)
-        mean_l = statistics.mean(lengths)
+        mean_length = statistics.mean(lengths)
 
-        cov = sum((s - mean_s) * (l - mean_l) for s, l in zip(scores, lengths))
+        cov = sum(
+            (score - mean_s) * (length - mean_length)
+            for score, length in zip(scores, lengths, strict=True)
+        )
         std_s = statistics.stdev(scores) if len(scores) > 1 else 1.0
         std_l = statistics.stdev(lengths) if len(lengths) > 1 else 1.0
 
@@ -170,11 +173,11 @@ def check_self_enhancement_risk(
 
     """
     # Extract provider from model strings like "anthropic/claude-3.5-sonnet"
-    judge_provider = judge_model.split("/")[0].lower() if "/" in judge_model else judge_model.lower()
+    judge_provider = (
+        judge_model.split("/")[0].lower() if "/" in judge_model else judge_model.lower()
+    )
     gen_provider = (
-        source_model.split("/")[0].lower()
-        if "/" in source_model
-        else source_model.lower()
+        source_model.split("/")[0].lower() if "/" in source_model else source_model.lower()
     )
 
     is_same_family = judge_provider == gen_provider

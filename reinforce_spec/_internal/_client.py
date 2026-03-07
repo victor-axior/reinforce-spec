@@ -14,26 +14,29 @@ import asyncio
 import enum
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
-from openai import AsyncOpenAI, APIConnectionError, APIStatusError, RateLimitError
+from openai import APIConnectionError, APIStatusError, AsyncOpenAI, RateLimitError
 from tenacity import (
+    RetryError,
+    before_sleep_log,
     retry,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential_jitter,
-    before_sleep_log,
-    RetryError,
 )
 
 from reinforce_spec._exceptions import (
     CircuitBreakerOpenError,
-    RateLimitError as RSRateLimitError,
     UpstreamError,
 )
-from reinforce_spec._internal._config import LLMConfig
+from reinforce_spec._exceptions import (
+    RateLimitError as RSRateLimitError,
+)
 
+if TYPE_CHECKING:
+    from reinforce_spec._internal._config import LLMConfig
 
 # ── Circuit Breaker ───────────────────────────────────────────────────────────
 
@@ -96,7 +99,11 @@ class CircuitBreaker:
             if self._failure_count >= self.threshold:
                 self._state = CircuitState.OPEN
                 logger.warning(
-                    "circuit_breaker_opened | failure_count={failure_count} cooldown_seconds={cooldown_seconds}",
+                    (
+                        "circuit_breaker_opened | "
+                        "failure_count={failure_count} "
+                        "cooldown_seconds={cooldown_seconds}"
+                    ),
                     failure_count=self._failure_count,
                     cooldown_seconds=self.cooldown_seconds,
                 )
@@ -239,7 +246,14 @@ class OpenRouterClient:
                 self._total_cost_usd += metrics.cost_usd
 
             logger.info(
-                "llm_call_success | model={model} prompt_tokens={prompt_tokens} completion_tokens={completion_tokens} latency_ms={latency_ms} cost_usd={cost_usd}",
+                (
+                    "llm_call_success | "
+                    "model={model} "
+                    "prompt_tokens={prompt_tokens} "
+                    "completion_tokens={completion_tokens} "
+                    "latency_ms={latency_ms} "
+                    "cost_usd={cost_usd}"
+                ),
                 model=model,
                 prompt_tokens=metrics.prompt_tokens,
                 completion_tokens=metrics.completion_tokens,
@@ -382,7 +396,12 @@ class OpenRouterClient:
             except (UpstreamError, CircuitBreakerOpenError) as e:
                 last_error = e
                 logger.warning(
-                    "model_fallback | failed_model={failed_model} error={error} remaining_models={remaining_models}",
+                    (
+                        "model_fallback | "
+                        "failed_model={failed_model} "
+                        "error={error} "
+                        "remaining_models={remaining_models}"
+                    ),
                     failed_model=model,
                     error=str(e),
                     remaining_models=len(models) - models.index(model) - 1,
@@ -440,7 +459,7 @@ class OpenRouterClient:
                 response_format=response_format,
                 json_schema=json_schema,
             )
-            for msgs, temp in zip(messages_list, temperatures)
+            for msgs, temp in zip(messages_list, temperatures, strict=True)
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -450,7 +469,7 @@ class OpenRouterClient:
         """Close the underlying HTTP client."""
         await self._client.close()
 
-    async def __aenter__(self) -> "OpenRouterClient":
+    async def __aenter__(self) -> OpenRouterClient:
         return self
 
     async def __aexit__(self, *args: object) -> None:

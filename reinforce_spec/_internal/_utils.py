@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import time
+from datetime import UTC, datetime
 from typing import Any
-from datetime import datetime, timezone
 
 from ulid import ULID
 
@@ -17,7 +17,7 @@ def generate_request_id() -> str:
 
 def utc_now() -> datetime:
     """Return the current UTC datetime (timezone-aware)."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def hash_content(content: str) -> str:
@@ -40,7 +40,7 @@ class Timer:
         self._start: float = 0.0
         self._end: float = 0.0
 
-    def __enter__(self) -> "Timer":
+    def __enter__(self) -> Timer:
         self._start = time.perf_counter()
         return self
 

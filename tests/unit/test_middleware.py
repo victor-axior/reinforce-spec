@@ -6,14 +6,10 @@ Tests use a minimal FastAPI app with the middleware mounted.
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 from starlette.testclient import TestClient
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -295,5 +291,6 @@ class TestMiddlewarePackage:
             BackpressureMiddleware,
             RequestLoggingMiddleware,
         )
+
         assert BackpressureMiddleware is not None
         assert RequestLoggingMiddleware is not None

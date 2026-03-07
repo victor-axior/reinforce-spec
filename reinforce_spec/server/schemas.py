@@ -9,7 +9,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # ── Spec Schemas ──────────────────────────────────────────────────────────────
 
 
@@ -29,7 +28,9 @@ class EvaluateRequest(BaseModel):
         min_length=2,
         description="Specification candidates (min 2, recommended ≥ 5) in any textual format",
     )
-    selection_method: str = Field("hybrid", description="Selection method: hybrid, scoring_only, rl_only")
+    selection_method: str = Field(
+        "hybrid", description="Selection method: hybrid, scoring_only, rl_only"
+    )
     request_id: str | None = Field(None, description="Idempotency key")
     description: str = Field("", max_length=2000, description="Optional context for auditing")
 

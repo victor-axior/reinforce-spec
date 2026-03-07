@@ -6,10 +6,14 @@ installed, all requests pass through (no-op).
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from loguru import logger
-from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import JSONResponse
+
+if TYPE_CHECKING:
+    from fastapi import Request, Response
 
 
 def _get_client_ip(request: Request) -> str:

@@ -15,15 +15,17 @@ Examples
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 from loguru import logger
 
 from reinforce_spec._internal._config import RLConfig
 from reinforce_spec._internal._environment import build_observation
-from reinforce_spec._internal._policy import PPOPolicy
-from reinforce_spec.types import CandidateSpec
+
+if TYPE_CHECKING:
+    from reinforce_spec._internal._policy import PPOPolicy
+    from reinforce_spec.types import CandidateSpec
 
 
 @dataclasses.dataclass(frozen=True, slots=True)

@@ -6,9 +6,10 @@ exporting it to a static YAML file.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from fastapi import FastAPI
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 
 def custom_openapi(app: FastAPI) -> dict[str, Any]:

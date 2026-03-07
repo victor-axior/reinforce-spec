@@ -7,8 +7,8 @@ WORKDIR /build
 RUN pip install --no-cache-dir uv
 
 # Copy dependency spec first (layer caching)
-COPY pyproject.toml ./
-COPY reinforce_spec/version.py reinforce_spec/version.py
+COPY pyproject.toml README.md ./
+COPY reinforce_spec/ reinforce_spec/
 
 # Create venv and install dependencies
 RUN uv venv /opt/venv && \
@@ -34,10 +34,14 @@ ENV PYTHONUNBUFFERED=1
 
 # Copy application code
 COPY reinforce_spec/ reinforce_spec/
-COPY pyproject.toml .
+COPY data/policies/ /app/bootstrap/policies/
+COPY scripts/docker_entrypoint.sh /app/docker_entrypoint.sh
+COPY pyproject.toml README.md ./
 
 # Create data directory
-RUN mkdir -p /app/data/policies && chown -R appuser:appuser /app
+RUN mkdir -p /app/data/policies /app/data/db && \
+    chmod +x /app/docker_entrypoint.sh && \
+    chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser
@@ -48,5 +52,5 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 
 EXPOSE 8000
 
-ENTRYPOINT ["python", "-m", "reinforce_spec.server"]
+ENTRYPOINT ["/app/docker_entrypoint.sh"]
 CMD ["--host", "0.0.0.0", "--port", "8000"]

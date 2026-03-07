@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from reinforce_spec.types import CandidateSpec, DimensionScore, ScoringWeights
+from reinforce_spec.types import CandidateSpec, DimensionScore
 
 
 @pytest.mark.behavioral()
@@ -22,20 +22,14 @@ class TestScoringInvariants:
             content="# Comprehensive API Design\n" * 50,
             spec_type="api",
             composite_score=4.5,
-            dimension_scores=[
-                DimensionScore(dimension=f"dim_{i}", score=4.5)
-                for i in range(12)
-            ],
+            dimension_scores=[DimensionScore(dimension=f"dim_{i}", score=4.5) for i in range(12)],
         )
         minimal = CandidateSpec(
             index=1,
             content="Do something.",
             spec_type="srs",
             composite_score=1.2,
-            dimension_scores=[
-                DimensionScore(dimension=f"dim_{i}", score=1.2)
-                for i in range(12)
-            ],
+            dimension_scores=[DimensionScore(dimension=f"dim_{i}", score=1.2) for i in range(12)],
         )
         assert excellent.composite_score > minimal.composite_score
 
@@ -64,12 +58,15 @@ class TestSelectionInvariants:
     def test_at_least_two_candidates_required(self) -> None:
         """The system must reject fewer than 2 candidates."""
         from pydantic import ValidationError
+
         from reinforce_spec.types import SelectionRequest
 
         with pytest.raises(ValidationError):
-            SelectionRequest(candidates=[
-                CandidateSpec(content="Only one"),
-            ])
+            SelectionRequest(
+                candidates=[
+                    CandidateSpec(content="Only one"),
+                ]
+            )
 
     def test_scoring_weights_always_sum_to_one(self) -> None:
         """Weights must always sum to 1.0 (±0.01)."""

@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import numpy as np
 import pytest
 
 from reinforce_spec._exceptions import InsufficientCandidatesError
 from reinforce_spec._internal._config import AppConfig
 from reinforce_spec.client import ReinforceSpec
-from reinforce_spec.types import CandidateSpec, DimensionScore, PolicyStage, SelectionMethod
+from reinforce_spec.types import CandidateSpec, DimensionScore
 
 
 def _make_candidates(n: int = 3) -> list[CandidateSpec]:
@@ -114,9 +113,7 @@ class TestReinforceSpec:
         )
         client._selector = mock_selector
 
-        response = await client.select(
-            candidates, selection_method="scoring_only"
-        )
+        response = await client.select(candidates, selection_method="scoring_only")
         assert response is not None
 
         await client.close()
@@ -127,11 +124,10 @@ class TestReinforceSpec:
         async with ReinforceSpec(config=config) as client:
             # First create a request
             await client._storage.save_request(
-                request_id="req-fb", n_specs=2,
+                request_id="req-fb",
+                n_specs=2,
             )
-            fid = await client.submit_feedback(
-                request_id="req-fb", rating=4.0, comment="Good"
-            )
+            fid = await client.submit_feedback(request_id="req-fb", rating=4.0, comment="Good")
             assert isinstance(fid, str)
 
     async def test_submit_feedback_shapes_reward(self, tmp_path) -> None:
@@ -139,11 +135,10 @@ class TestReinforceSpec:
         config.storage.data_dir = str(tmp_path)
         async with ReinforceSpec(config=config) as client:
             await client._storage.save_request(
-                request_id="req-fb2", n_specs=2,
+                request_id="req-fb2",
+                n_specs=2,
             )
-            await client.submit_feedback(
-                request_id="req-fb2", rating=5.0
-            )
+            await client.submit_feedback(request_id="req-fb2", rating=5.0)
             # Env should have received feedback signal
             assert client._env is not None
 

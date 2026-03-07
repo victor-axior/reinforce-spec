@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -13,8 +12,8 @@ from reinforce_spec._internal._config import (
     AppConfig,
     LLMConfig,
     ObservabilityConfig,
-    RLConfig,
     ResilienceConfig,
+    RLConfig,
     ScoringConfig,
     ServerConfig,
     StorageConfig,

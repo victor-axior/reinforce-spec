@@ -5,13 +5,15 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import AsyncGenerator, Generator
+from typing import TYPE_CHECKING
 
 import pytest
 
 from reinforce_spec._internal._config import AppConfig
-from reinforce_spec.types import CandidateSpec, DimensionScore, SpecFormat
+from reinforce_spec.types import CandidateSpec, DimensionScore
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 # ── Fixtures Directory ────────────────────────────────────────────────────────
 

@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from reinforce_spec._internal._metrics import MetricsCollector
 
 
@@ -71,7 +69,8 @@ class TestMetricsCollectorEnabled:
         c = _make_enabled_collector()
         c.record_generation("enterprise", "success", 1.5, 3)
         c.generation_requests_total.labels.assert_called_with(
-            customer_type="enterprise", status="success",
+            customer_type="enterprise",
+            status="success",
         )
         c.generation_latency_seconds.observe.assert_called_with(1.5)
         c.candidates_generated.observe.assert_called_with(3)
@@ -80,7 +79,8 @@ class TestMetricsCollectorEnabled:
         c = _make_enabled_collector()
         c.record_generation("sme", "error", 0.2, 0)
         c.generation_requests_total.labels.assert_called_with(
-            customer_type="sme", status="error",
+            customer_type="sme",
+            status="error",
         )
 
     # ── record_score enabled path ──────────────────────────────────

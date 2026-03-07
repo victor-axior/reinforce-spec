@@ -16,13 +16,14 @@ Estimators
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from loguru import logger
 
-from reinforce_spec._internal._policy import PPOPolicy
-from reinforce_spec._internal._replay_buffer import Transition
+if TYPE_CHECKING:
+    from reinforce_spec._internal._policy import PPOPolicy
+    from reinforce_spec._internal._replay_buffer import Transition
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -89,7 +90,9 @@ def importance_sampling(
     estimated_value = float(np.mean(weighted_rewards))
 
     # Effective sample size
-    ess = float(np.sum(ratios_arr) ** 2 / np.sum(ratios_arr**2)) if np.sum(ratios_arr**2) > 0 else 0.0
+    ess = (
+        float(np.sum(ratios_arr) ** 2 / np.sum(ratios_arr**2)) if np.sum(ratios_arr**2) > 0 else 0.0
+    )
 
     # Bootstrap confidence interval
     ci_low, ci_high = _bootstrap_ci(weighted_rewards)
@@ -157,9 +160,7 @@ def weighted_importance_sampling(
         estimated_value = float(np.sum(ratios_arr * rewards_arr) / total_ratio)
 
     ess = float(total_ratio**2 / np.sum(ratios_arr**2)) if np.sum(ratios_arr**2) > 0 else 0.0
-    ci_low, ci_high = _bootstrap_ci(
-        (ratios_arr * rewards_arr).tolist(), normalize=True
-    )
+    ci_low, ci_high = _bootstrap_ci((ratios_arr * rewards_arr).tolist(), normalize=True)
 
     return OPEResult(
         estimator="WIS",
@@ -241,13 +242,13 @@ def fitted_q_evaluation(
 
             targets.append(target)
 
-        X = np.array(features)
+        design_matrix = np.array(features)
         y = np.array(targets)
 
         # Simple least-squares fit with L2 regularization
         reg = 0.01 * np.eye(feat_dim)
         try:
-            weights = np.linalg.solve(X.T @ X + reg, X.T @ y)
+            weights = np.linalg.solve(design_matrix.T @ design_matrix + reg, design_matrix.T @ y)
         except np.linalg.LinAlgError:
             logger.warning("fqe_singular_matrix | iteration={iteration}", iteration=iteration)
             break

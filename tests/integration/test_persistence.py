@@ -57,9 +57,7 @@ class TestStorage:
 
     async def test_save_feedback(self, storage: Storage) -> None:
         await storage.save_request(request_id="req-004", n_specs=1)
-        fid = await storage.save_feedback(
-            request_id="req-004", rating=4.5, comment="Great spec"
-        )
+        fid = await storage.save_feedback(request_id="req-004", rating=4.5, comment="Great spec")
         assert fid is not None
 
         feedback = await storage.get_feedback_for_request("req-004")

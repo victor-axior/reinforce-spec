@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from unittest.mock import patch
 
 from reinforce_spec._internal._logging import _InterceptHandler, configure_logging
 

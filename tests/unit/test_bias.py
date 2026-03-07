@@ -161,10 +161,12 @@ class TestAggregateScoresTrimmedMean:
         assert result == {"compliance_regulatory": 3.5}
 
     def test_two_judges_no_trim(self) -> None:
-        result = aggregate_scores_trimmed_mean([
-            {"compliance_regulatory": 3.0},
-            {"compliance_regulatory": 5.0},
-        ])
+        result = aggregate_scores_trimmed_mean(
+            [
+                {"compliance_regulatory": 3.0},
+                {"compliance_regulatory": 5.0},
+            ]
+        )
         assert result["compliance_regulatory"] == pytest.approx(4.0)
 
     def test_three_judges_with_trim(self) -> None:
@@ -180,10 +182,12 @@ class TestAggregateScoresTrimmedMean:
         assert result["compliance_regulatory"] == pytest.approx(3.0)
 
     def test_multiple_dimensions(self) -> None:
-        result = aggregate_scores_trimmed_mean([
-            {"compliance_regulatory": 3.0, "security_architecture": 4.0},
-            {"compliance_regulatory": 4.0, "security_architecture": 2.0},
-        ])
+        result = aggregate_scores_trimmed_mean(
+            [
+                {"compliance_regulatory": 3.0, "security_architecture": 4.0},
+                {"compliance_regulatory": 4.0, "security_architecture": 2.0},
+            ]
+        )
         assert result["compliance_regulatory"] == pytest.approx(3.5)
         assert result["security_architecture"] == pytest.approx(3.0)
 

@@ -20,14 +20,20 @@ import pytest
 
 from reinforce_spec.types import CandidateSpec, DimensionScore
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 DIMS = [
-    "compliance_regulatory", "identity_access", "deployment_topology",
-    "data_governance", "observability_monitoring", "incident_workflow",
-    "security_architecture", "vendor_model_abstraction",
-    "scalability_performance", "finops_cost", "developer_experience",
+    "compliance_regulatory",
+    "identity_access",
+    "deployment_topology",
+    "data_governance",
+    "observability_monitoring",
+    "incident_workflow",
+    "security_architecture",
+    "vendor_model_abstraction",
+    "scalability_performance",
+    "finops_cost",
+    "developer_experience",
     "onboarding_production_path",
 ]
 
@@ -49,14 +55,17 @@ class TestEnvironmentReexports:
 
     def test_spec_selection_env_importable(self) -> None:
         from reinforce_spec.rl.environment import SpecSelectionEnv
+
         assert SpecSelectionEnv is not None
 
     def test_build_observation_importable(self) -> None:
         from reinforce_spec.rl.environment import build_observation
+
         assert callable(build_observation)
 
     def test_constants_importable(self) -> None:
         from reinforce_spec.rl.environment import N_DIMENSIONS, PER_CANDIDATE_FEATURES
+
         assert N_DIMENSIONS == 12
         assert PER_CANDIDATE_FEATURES == 19
 
@@ -69,11 +78,9 @@ class TestEvaluation:
 
     def test_imports(self) -> None:
         from reinforce_spec.rl.evaluation import (
-            OPEResult,
             evaluate_policy,
-            importance_sampling,
-            weighted_importance_sampling,
         )
+
         assert callable(evaluate_policy)
 
     def test_evaluate_policy_wis(self) -> None:
@@ -122,7 +129,8 @@ class TestSelector:
     """Test the Selector façade."""
 
     def test_import(self) -> None:
-        from reinforce_spec.rl.selector import SelectionResult, Selector
+        from reinforce_spec.rl.selector import Selector
+
         assert Selector is not None
 
     def test_scoring_only(self) -> None:
@@ -155,7 +163,8 @@ class TestSelector:
         policy = MagicMock()
         policy.predict.return_value = (1, 0.9)
         policy.get_action_probabilities.return_value = np.array(
-            [0.1, 0.9, 0.0, 0.0, 0.0], dtype=np.float32,
+            [0.1, 0.9, 0.0, 0.0, 0.0],
+            dtype=np.float32,
         )
 
         sel = Selector(policy=policy)
@@ -171,7 +180,8 @@ class TestSelector:
         policy = MagicMock()
         policy.predict.return_value = (0, 0.7)
         policy.get_action_probabilities.return_value = np.array(
-            [0.7, 0.2, 0.1, 0.0, 0.0], dtype=np.float32,
+            [0.7, 0.2, 0.1, 0.0, 0.0],
+            dtype=np.float32,
         )
 
         sel = Selector(policy=policy)
@@ -200,7 +210,8 @@ class TestPolicyRegistry:
     """Test the PolicyRegistry façade."""
 
     def test_import(self) -> None:
-        from reinforce_spec.rl.registry import PolicyRegistry, PolicyVersion
+        from reinforce_spec.rl.registry import PolicyRegistry
+
         assert PolicyRegistry is not None
 
     def test_list_versions_empty(self, tmp_path) -> None:
@@ -262,7 +273,8 @@ class TestTrainer:
     """Test the Trainer façade."""
 
     def test_import(self) -> None:
-        from reinforce_spec.rl.trainer import TrainResult, Trainer
+        from reinforce_spec.rl.trainer import Trainer
+
         assert Trainer is not None
 
     def test_train_result_dataclass(self) -> None:
@@ -281,31 +293,38 @@ class TestRLLazyImports:
 
     def test_spec_selection_env(self) -> None:
         from reinforce_spec.rl import SpecSelectionEnv
+
         assert SpecSelectionEnv is not None
 
     def test_policy_manager(self) -> None:
         from reinforce_spec.rl import PolicyManager
+
         assert PolicyManager is not None
 
     def test_trainer(self) -> None:
         from reinforce_spec.rl import Trainer
+
         assert Trainer is not None
 
     def test_selector(self) -> None:
         from reinforce_spec.rl import Selector
+
         assert Selector is not None
 
     def test_policy_registry(self) -> None:
         from reinforce_spec.rl import PolicyRegistry
+
         assert PolicyRegistry is not None
 
     def test_evaluate_policy(self) -> None:
         from reinforce_spec.rl import evaluate_policy
+
         assert callable(evaluate_policy)
 
     def test_invalid_attr_raises(self) -> None:
         with pytest.raises(AttributeError, match="no attribute"):
             from reinforce_spec import rl
+
             rl.__getattr__("nonexistent_symbol")
 
 
@@ -317,14 +336,17 @@ class TestScoringPublicAPI:
 
     def test_dimension_importable(self) -> None:
         from reinforce_spec.scoring import Dimension
+
         assert len(list(Dimension)) == 12
 
     def test_enterprise_scorer_lazy(self) -> None:
         from reinforce_spec.scoring import EnterpriseScorer
+
         assert EnterpriseScorer is not None
 
     def test_scoring_init_invalid_attr(self) -> None:
         from reinforce_spec import scoring
+
         with pytest.raises(AttributeError):
             scoring.__getattr__("DoesNotExist")
 
@@ -365,10 +387,9 @@ class TestScoringPublicAPI:
 class TestCalibrationReexports:
     def test_imports(self) -> None:
         from reinforce_spec.scoring.calibration import (
-            CalibrationAnchor,
-            CalibrationResult,
             ScoreCalibrator,
         )
+
         assert ScoreCalibrator is not None
 
 
@@ -379,36 +400,33 @@ class TestRubricReexports:
     def test_imports(self) -> None:
         from reinforce_spec.scoring.rubric import (
             RUBRIC,
-            Dimension,
-            DimensionDefinition,
-            ScoreCriterion,
-            format_rubric_for_prompt,
-            get_all_dimensions,
-            get_default_weights,
-            get_dimension_definition,
-            validate_weights,
         )
+
         assert len(RUBRIC) == 12
 
     def test_format_rubric_for_prompt(self) -> None:
         from reinforce_spec.scoring.rubric import format_rubric_for_prompt
+
         text = format_rubric_for_prompt()
         assert isinstance(text, str)
         assert len(text) > 100
 
     def test_get_all_dimensions(self) -> None:
         from reinforce_spec.scoring.rubric import get_all_dimensions
+
         dims = get_all_dimensions()
         assert len(dims) == 12
 
     def test_get_dimension_definition(self) -> None:
         from reinforce_spec.scoring.rubric import Dimension, get_dimension_definition
+
         defn = get_dimension_definition(Dimension.COMPLIANCE_REGULATORY)
         assert defn is not None
         assert defn.key == "compliance_regulatory"
 
     def test_get_default_weights(self) -> None:
         from reinforce_spec.scoring.rubric import get_default_weights
+
         weights = get_default_weights()
         assert isinstance(weights, dict)
         total = sum(weights.values())
@@ -416,10 +434,12 @@ class TestRubricReexports:
 
     def test_validate_weights_valid(self) -> None:
         from reinforce_spec.scoring.rubric import get_default_weights, validate_weights
+
         assert validate_weights(get_default_weights()) is True
 
     def test_validate_weights_invalid(self) -> None:
         from reinforce_spec.scoring.rubric import validate_weights
+
         assert validate_weights({"bad": 0.5}) is False
 
 
@@ -429,4 +449,5 @@ class TestRubricReexports:
 class TestJudgeReexport:
     def test_enterprise_scorer_importable(self) -> None:
         from reinforce_spec.scoring.judge import EnterpriseScorer
+
         assert EnterpriseScorer is not None

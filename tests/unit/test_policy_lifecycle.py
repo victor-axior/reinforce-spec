@@ -6,23 +6,19 @@ Covers reinforce_spec/_internal/_policy.py — the biggest uncovered module.
 from __future__ import annotations
 
 import hashlib
-import json
-import shutil
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, PropertyMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
 from reinforce_spec._exceptions import PolicyNotFoundError, PolicyTrainingError
 from reinforce_spec._internal._config import RLConfig
-from reinforce_spec._internal._policy import PolicyManager, PolicyMetadata
+from reinforce_spec._internal._policy import PolicyManager
 from reinforce_spec.types import PolicyStage
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _mock_sb3_module() -> MagicMock:
     """Return a mock stable_baselines3 module with a mock PPO class."""
@@ -138,8 +134,11 @@ class TestPPOPolicy:
         from reinforce_spec._internal._replay_buffer import Transition
 
         t = Transition(
-            observation=np.zeros(10), action=0, reward=1.0,
-            next_observation=np.zeros(10), done=False,
+            observation=np.zeros(10),
+            action=0,
+            reward=1.0,
+            next_observation=np.zeros(10),
+            done=False,
         )
         policy.train_on_batch([t], total_timesteps=50)
         policy.train_on_batch([t], total_timesteps=50)
@@ -151,8 +150,11 @@ class TestPPOPolicy:
         from reinforce_spec._internal._replay_buffer import Transition
 
         t = Transition(
-            observation=np.zeros(10), action=0, reward=1.0,
-            next_observation=np.zeros(10), done=False,
+            observation=np.zeros(10),
+            action=0,
+            reward=1.0,
+            next_observation=np.zeros(10),
+            done=False,
         )
         with pytest.raises(PolicyTrainingError, match="PPO training failed"):
             policy.train_on_batch([t], total_timesteps=10)
@@ -189,8 +191,11 @@ class TestPPOPolicy:
 
         transitions = [
             Transition(
-                observation=np.zeros(10), action=0, reward=1.0,
-                next_observation=np.zeros(10), done=False,
+                observation=np.zeros(10),
+                action=0,
+                reward=1.0,
+                next_observation=np.zeros(10),
+                done=False,
             )
         ]
         # When total_timesteps is None, uses max(len(transitions), ppo_batch_size)
@@ -514,7 +519,9 @@ class TestPolicyManagerLifecycle:
         assert checksum == ""
 
     @patch("reinforce_spec._internal._policy.PPOPolicy")
-    def test_update_production_link_replaces_existing(self, MockPPO: MagicMock, tmp_path: Path) -> None:
+    def test_update_production_link_replaces_existing(
+        self, MockPPO: MagicMock, tmp_path: Path
+    ) -> None:
         MockPPO.return_value = MagicMock()
         mgr = PolicyManager(storage_dir=tmp_path)
 
@@ -534,7 +541,9 @@ class TestPolicyManagerLifecycle:
 
     @patch("reinforce_spec._internal._policy.PPOPolicy")
     def test_list_policies_sorted_by_version_descending(
-        self, MockPPO: MagicMock, tmp_path: Path,
+        self,
+        MockPPO: MagicMock,
+        tmp_path: Path,
     ) -> None:
         mock_policy = MagicMock()
         mock_policy.save.return_value = tmp_path / "model.zip"

@@ -7,8 +7,8 @@ Covers all API endpoints: health, specs, feedback, policy, and jobs.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -30,7 +30,6 @@ from reinforce_spec.types import (
     PolicyStatus,
     SelectionResponse,
 )
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -56,6 +55,7 @@ def _make_mock_client(*, connected: bool = True) -> MagicMock:
 @pytest.fixture()
 def client(app):
     """Sync test client with a connected mock client."""
+
     @asynccontextmanager
     async def mock_lifespan(app):
         app.state.client = _make_mock_client(connected=True)
@@ -69,6 +69,7 @@ def client(app):
 @pytest.fixture()
 def disconnected_client(app):
     """Sync test client with a disconnected mock client."""
+
     @asynccontextmanager
     async def mock_lifespan(app):
         app.state.client = _make_mock_client(connected=False)
@@ -106,7 +107,7 @@ def _make_selection_response(*, request_id: str = "req-001") -> SelectionRespons
             "security_architecture": 4.3,
         },
         latency_ms=142.5,
-        timestamp=datetime(2026, 3, 1, 12, 0, 0, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 3, 1, 12, 0, 0, tzinfo=UTC),
     )
 
 
@@ -364,7 +365,7 @@ class TestPolicyRoutes:
             mean_reward=0.72,
             explore_rate=0.15,
             drift_psi=0.03,
-            last_trained=datetime(2026, 2, 28, 10, 0, 0, tzinfo=timezone.utc),
+            last_trained=datetime(2026, 2, 28, 10, 0, 0, tzinfo=UTC),
         )
 
         response = client.get("/v1/policy/status")

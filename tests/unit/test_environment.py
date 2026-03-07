@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from reinforce_spec._internal._config import RLConfig
 from reinforce_spec._internal._environment import (
@@ -14,14 +13,20 @@ from reinforce_spec._internal._environment import (
 )
 from reinforce_spec.types import CandidateSpec, DimensionScore
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 DIMS = [
-    "compliance_regulatory", "identity_access", "deployment_topology",
-    "data_governance", "observability_monitoring", "incident_workflow",
-    "security_architecture", "vendor_model_abstraction",
-    "scalability_performance", "finops_cost", "developer_experience",
+    "compliance_regulatory",
+    "identity_access",
+    "deployment_topology",
+    "data_governance",
+    "observability_monitoring",
+    "incident_workflow",
+    "security_architecture",
+    "vendor_model_abstraction",
+    "scalability_performance",
+    "finops_cost",
+    "developer_experience",
     "onboarding_production_path",
 ]
 
@@ -38,9 +43,7 @@ def _make_candidate(
         content=content,
         spec_type=spec_type,
         composite_score=composite,
-        dimension_scores=[
-            DimensionScore(dimension=d, score=dim_score) for d in DIMS
-        ],
+        dimension_scores=[DimensionScore(dimension=d, score=dim_score) for d in DIMS],
     )
 
 

@@ -132,9 +132,7 @@ class TestCircuitBreakerOpenError:
         assert "Circuit breaker" in str(exc)
 
     def test_custom_cooldown(self) -> None:
-        exc = CircuitBreakerOpenError(
-            cooldown_remaining=42.5, provider="openrouter"
-        )
+        exc = CircuitBreakerOpenError(cooldown_remaining=42.5, provider="openrouter")
         assert exc.cooldown_remaining == 42.5
         assert exc.provider == "openrouter"
 

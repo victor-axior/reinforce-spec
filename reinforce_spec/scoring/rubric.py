@@ -6,9 +6,9 @@ Re-exports rubric definitions from _internal for public consumption.
 from __future__ import annotations
 
 from reinforce_spec._internal._rubric import (
+    RUBRIC,
     Dimension,
     DimensionDefinition,
-    RUBRIC,
     ScoreCriterion,
     format_rubric_for_prompt,
     get_all_dimensions,

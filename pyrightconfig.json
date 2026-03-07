@@ -1,0 +1,17 @@
+{
+  "include": ["reinforce_spec"],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownParameterType": "none",
+  "reportUnknownLambdaType": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportUnsupportedDunderAll": "none",
+  "reportAttributeAccessIssue": "warning",
+  "reportCallIssue": "warning",
+  "reportArgumentType": "warning"
+}

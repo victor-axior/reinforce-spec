@@ -12,13 +12,16 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import traceback
-from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
 from reinforce_spec._internal._utils import utc_now
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+    from datetime import datetime
 
 
 class JobStatus(str, Enum):
@@ -84,9 +87,9 @@ class JobQueue:
 
     def __init__(self, max_concurrent: int = 2) -> None:
         self._max_concurrent = max_concurrent
-        self._queue: asyncio.Queue[tuple[Job, Callable[..., Awaitable[Any]], tuple[Any, ...], dict[str, Any]]] = (
-            asyncio.Queue()
-        )
+        self._queue: asyncio.Queue[
+            tuple[Job, Callable[..., Awaitable[Any]], tuple[Any, ...], dict[str, Any]]
+        ] = asyncio.Queue()
         self._jobs: dict[str, Job] = {}
         self._workers: list[asyncio.Task[None]] = []
         self._running = False
@@ -163,9 +166,7 @@ class JobQueue:
         """Process jobs from the queue."""
         while self._running:
             try:
-                job, fn, args, kwargs = await asyncio.wait_for(
-                    self._queue.get(), timeout=1.0
-                )
+                job, fn, args, kwargs = await asyncio.wait_for(self._queue.get(), timeout=1.0)
             except asyncio.TimeoutError:
                 continue
             except asyncio.CancelledError:

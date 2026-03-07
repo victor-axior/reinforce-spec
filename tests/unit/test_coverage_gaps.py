@@ -11,22 +11,17 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
 import json
-import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import numpy as np
 import pytest
 
-from reinforce_spec._compat import require_dependency, python_version_info
+from reinforce_spec._compat import python_version_info, require_dependency
 from reinforce_spec._exceptions import (
     CircuitBreakerOpenError,
-    IdempotencyConflictError,
     UpstreamError,
 )
 from reinforce_spec._internal._idempotency import IdempotencyStore
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # _compat.py — require_dependency
@@ -129,7 +124,9 @@ class TestIdempotencyStoreRedis:
         await store.save("my-key", response)
 
         mock_redis.setex.assert_awaited_once_with(
-            "idem:my-key", 3600, json.dumps(response),
+            "idem:my-key",
+            3600,
+            json.dumps(response),
         )
 
 
@@ -143,7 +140,7 @@ class TestOpenRouterClientFallback:
 
     @staticmethod
     def _make_client():
-        from reinforce_spec._internal._client import LLMCallMetrics, OpenRouterClient
+        from reinforce_spec._internal._client import OpenRouterClient
         from reinforce_spec._internal._config import LLMConfig
 
         config = LLMConfig(
@@ -210,7 +207,9 @@ class TestOpenRouterClientFallback:
         client = self._make_client()
         client.complete = AsyncMock(
             side_effect=CircuitBreakerOpenError(
-                "open", provider="openrouter", cooldown_remaining=30.0,
+                "open",
+                provider="openrouter",
+                cooldown_remaining=30.0,
             ),
         )
 
@@ -386,8 +385,6 @@ class TestReinforceSpecTrainPolicy:
 
     @pytest.mark.asyncio
     async def test_train_policy_creates_new_policy(self) -> None:
-        from reinforce_spec.types import PolicyStage
-
         client = self._make_client()
         client._replay_buffer.size = 1000
 

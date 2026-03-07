@@ -7,9 +7,10 @@ Endpoints:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, Depends
 
-from reinforce_spec.client import ReinforceSpec
 from reinforce_spec.server.dependencies import get_client
 from reinforce_spec.server.schemas import (
     EvaluateRequest,
@@ -17,6 +18,9 @@ from reinforce_spec.server.schemas import (
     FeedbackResponse,
 )
 from reinforce_spec.types import CandidateSpec, SelectionResponse
+
+if TYPE_CHECKING:
+    from reinforce_spec.client import ReinforceSpec
 
 router = APIRouter(tags=["specs"])
 

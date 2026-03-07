@@ -28,7 +28,8 @@ def _make_mock_policy(action: int = 0, confidence: float = 0.8) -> MagicMock:
     policy = MagicMock()
     policy.predict.return_value = (action, confidence)
     policy.get_action_probabilities.return_value = np.array(
-        [0.1, 0.1, 0.1, 0.1, 0.1], dtype=np.float32,
+        [0.1, 0.1, 0.1, 0.1, 0.1],
+        dtype=np.float32,
     )
     # Set the action index's probability to the confidence
     probs = np.array([0.05, 0.05, 0.05, 0.05, 0.05], dtype=np.float32)
@@ -105,7 +106,8 @@ class TestSelectByRL:
         policy = MagicMock()
         policy.predict.return_value = (7, 0.9)
         policy.get_action_probabilities.return_value = np.array(
-            [0.2, 0.2, 0.2, 0.2, 0.2], dtype=np.float32,
+            [0.2, 0.2, 0.2, 0.2, 0.2],
+            dtype=np.float32,
         )
         selector = HybridSelector(policy=policy)
         candidates = _make_candidates(3)

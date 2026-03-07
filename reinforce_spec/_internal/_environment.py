@@ -12,7 +12,7 @@ among a set of scored candidates, to recommend.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from loguru import logger
@@ -30,8 +30,9 @@ except ImportError:
     from gym import spaces  # type: ignore[import-untyped]
 
 from reinforce_spec._internal._config import RLConfig
-from reinforce_spec.types import CandidateSpec
 
+if TYPE_CHECKING:
+    from reinforce_spec.types import CandidateSpec
 
 # ── Feature Engineering ──────────────────────────────────────────────────────
 
@@ -136,9 +137,7 @@ class SpecSelectionEnv(gym.Env):  # type: ignore[misc]
 
         # Spaces
         obs_size = self._max_candidates * PER_CANDIDATE_FEATURES
-        self.observation_space = spaces.Box(
-            low=0.0, high=1.0, shape=(obs_size,), dtype=np.float32
-        )
+        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(obs_size,), dtype=np.float32)
         self.action_space = spaces.Discrete(self._max_candidates)
 
         # Internal state
@@ -161,9 +160,7 @@ class SpecSelectionEnv(gym.Env):  # type: ignore[misc]
     def set_candidates(self, candidates: list[CandidateSpec]) -> None:
         """Supply a fresh set of scored candidates for the next episode."""
         self._candidates = candidates[: self._max_candidates]
-        self._current_obs = build_observation(
-            self._candidates, self._max_candidates
-        )
+        self._current_obs = build_observation(self._candidates, self._max_candidates)
 
     def set_feedback_signal(self, signal: float) -> None:
         """Override the reward for the current step with human feedback.
@@ -202,9 +199,7 @@ class SpecSelectionEnv(gym.Env):  # type: ignore[misc]
                 cr = t.candidate_rewards.copy()
             else:
                 cr = np.full(self._max_candidates, float(t.reward), dtype=np.float32)
-            self._replay_queue.append(
-                (t.observation.copy(), float(t.reward), cr)
-            )
+            self._replay_queue.append((t.observation.copy(), float(t.reward), cr))
         self._replay_idx = 0
         logger.debug(
             "env_replay_loaded | n_transitions={n}",
@@ -233,9 +228,9 @@ class SpecSelectionEnv(gym.Env):  # type: ignore[misc]
         # Replay mode: serve the next stored observation so PPO trains
         # on real past experience rather than empty candidates.
         if self._replay_queue:
-            obs, _scalar_reward, candidate_rewards = (
-                self._replay_queue[self._replay_idx % len(self._replay_queue)]
-            )
+            obs, _scalar_reward, candidate_rewards = self._replay_queue[
+                self._replay_idx % len(self._replay_queue)
+            ]
             self._replay_idx += 1
             self._current_obs = obs.copy()
             self._replay_candidate_rewards = candidate_rewards
@@ -330,8 +325,7 @@ class SpecSelectionEnv(gym.Env):  # type: ignore[misc]
         for i, c in enumerate(self._candidates):
             marker = "→" if i == 0 else " "
             lines.append(
-                f"  {marker} [{i}] {c.spec_type:<14} "
-                f"composite={c.composite_score:.3f}"
+                f"  {marker} [{i}] {c.spec_type:<14} " f"composite={c.composite_score:.3f}"
             )
         return "\n".join(lines)
 

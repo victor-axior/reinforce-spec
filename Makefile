@@ -48,7 +48,7 @@ format: ## Auto-format code
 
 typecheck: ## Run type checking (mypy + pyright)
 	$(UV) run mypy reinforce_spec/
-	$(UV) run pyright reinforce_spec/
+	$(UV) run --with pyright pyright reinforce_spec/
 
 # ── Contract Testing ──────────────────────────────────────────────────────────
 

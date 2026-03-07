@@ -6,16 +6,16 @@ Covers reinforce_spec/rl/trainer.py lines 68-75 (properties) and
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from reinforce_spec._internal._config import RLConfig
-from reinforce_spec._internal._replay_buffer import PrioritizedReplayBuffer, Transition
-from reinforce_spec.rl.trainer import TrainResult, Trainer
-
+from reinforce_spec._internal._replay_buffer import Transition
+from reinforce_spec.rl.trainer import Trainer, TrainResult
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _mock_transition(reward: float = 1.0) -> Transition:
     import numpy as np
@@ -218,7 +218,9 @@ class TestTrainResult:
 
     def test_with_metrics(self) -> None:
         r = TrainResult(
-            steps=50, mean_reward=2.0, policy_version="v1",
+            steps=50,
+            mean_reward=2.0,
+            policy_version="v1",
             metrics={"loss": 0.1},
         )
         assert r.metrics == {"loss": 0.1}

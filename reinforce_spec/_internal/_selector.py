@@ -12,14 +12,16 @@ the best specification. Implements a graceful degradation ladder:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from loguru import logger
 
 from reinforce_spec._internal._environment import build_observation
-from reinforce_spec._internal._policy import PPOPolicy
 from reinforce_spec.types import CandidateSpec, DegradationLevel, SelectionMethod
+
+if TYPE_CHECKING:
+    from reinforce_spec._internal._policy import PPOPolicy
 
 
 class HybridSelector:
@@ -162,9 +164,7 @@ class HybridSelector:
         if self._policy is not None:
             obs = build_observation(candidates)
             probs = self._policy.get_action_probabilities(obs)
-            rl_scores[: min(len(probs), len(candidates))] = probs[
-                : len(candidates)
-            ]
+            rl_scores[: min(len(probs), len(candidates))] = probs[: len(candidates)]
             rl_confidence = float(np.max(rl_scores))
 
         # Determine effective RL weight

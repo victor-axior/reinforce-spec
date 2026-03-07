@@ -150,9 +150,7 @@ class MetricsCollector:
         """
         if not self._enabled:
             return
-        self.generation_requests_total.labels(
-            customer_type=customer_type, status=status
-        ).inc()
+        self.generation_requests_total.labels(customer_type=customer_type, status=status).inc()
         self.generation_latency_seconds.observe(latency_s)
         self.candidates_generated.observe(n_candidates)
 

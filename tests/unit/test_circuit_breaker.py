@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from reinforce_spec._exceptions import (
     CircuitBreakerOpenError,
-    RateLimitError as RSRateLimitError,
     UpstreamError,
 )
 from reinforce_spec._internal._client import (
@@ -20,7 +18,6 @@ from reinforce_spec._internal._client import (
     OpenRouterClient,
 )
 from reinforce_spec._internal._config import LLMConfig
-
 
 # ── CircuitBreaker ────────────────────────────────────────────────────────────
 

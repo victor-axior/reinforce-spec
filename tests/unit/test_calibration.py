@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from reinforce_spec._internal._calibration import CalibrationAnchor, CalibrationResult, ScoreCalibrator
+from reinforce_spec._internal._calibration import (
+    CalibrationAnchor,
+    CalibrationResult,
+    ScoreCalibrator,
+)
 
 
 class TestZScoreNormalization:
@@ -134,9 +138,7 @@ class TestZScoreEdgeCases:
             {"compliance_regulatory": 3.0},
             {"compliance_regulatory": 5.0},
         ]
-        calibrated = ScoreCalibrator.calibrate_zscore(
-            scores, target_mean=4.0, target_std=0.5
-        )
+        calibrated = ScoreCalibrator.calibrate_zscore(scores, target_mean=4.0, target_std=0.5)
         assert len(calibrated) == 3
 
 
@@ -176,9 +178,7 @@ class TestApplyCalibration:
             offset={"compliance_regulatory": 0.0},
             calibration_error=0.1,
         )
-        result = cal.apply_calibration(
-            {"compliance_regulatory": 2.0}, calibration
-        )
+        result = cal.apply_calibration({"compliance_regulatory": 2.0}, calibration)
         assert result["compliance_regulatory"] == pytest.approx(3.0)
 
     def test_apply_calibration_clamped(self) -> None:
@@ -188,9 +188,7 @@ class TestApplyCalibration:
             offset={"compliance_regulatory": 0.0},
             calibration_error=0.0,
         )
-        result = cal.apply_calibration(
-            {"compliance_regulatory": 4.0}, calibration
-        )
+        result = cal.apply_calibration({"compliance_regulatory": 4.0}, calibration)
         # 4.0 * 3.0 = 12.0, clamped to 5.0
         assert result["compliance_regulatory"] == 5.0
 
@@ -201,9 +199,7 @@ class TestApplyCalibration:
             offset={"compliance_regulatory": -5.0},
             calibration_error=0.0,
         )
-        result = cal.apply_calibration(
-            {"compliance_regulatory": 1.0}, calibration
-        )
+        result = cal.apply_calibration({"compliance_regulatory": 1.0}, calibration)
         # 1.0 * 0.1 + -5.0 = -4.9, clamped to 1.0
         assert result["compliance_regulatory"] == 1.0
 
@@ -214,9 +210,7 @@ class TestApplyCalibration:
             offset={},
             calibration_error=0.0,
         )
-        result = cal.apply_calibration(
-            {"compliance_regulatory": 3.5}, calibration
-        )
+        result = cal.apply_calibration({"compliance_regulatory": 3.5}, calibration)
         # default scale=1.0 offset=0.0
         assert result["compliance_regulatory"] == pytest.approx(3.5)
 

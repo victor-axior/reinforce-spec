@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import enum
 import re
-from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+if TYPE_CHECKING:
+    from datetime import datetime
 
 # ── Enums ─────────────────────────────────────────────────────────────────────
 
@@ -131,9 +132,7 @@ class DimensionScore(BaseModel):
 
     dimension: str
     score: float = Field(ge=1.0, le=5.0, description="Score on 1-5 scale")
-    justification: str = Field(
-        default="", description="2-3 sentence justification from the judge"
-    )
+    justification: str = Field(default="", description="2-3 sentence justification from the judge")
     confidence: float = Field(
         ge=0.0, le=1.0, default=1.0, description="Judge confidence in this score"
     )
@@ -201,7 +200,7 @@ class CandidateSpec(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
-    def _auto_detect_format(self) -> "CandidateSpec":
+    def _auto_detect_format(self) -> CandidateSpec:
         """Auto-detect format from content when using the default."""
         if self.format == SpecFormat.TEXT:
             detected = detect_format(self.content)

@@ -7,6 +7,7 @@ from _compat without caring about which version is installed.
 from __future__ import annotations
 
 import importlib.metadata
+import importlib.util
 import sys
 from typing import Any
 
@@ -20,10 +21,8 @@ PYDANTIC_V2 = _pydantic_version.startswith("2.")
 # the version and handle API differences between gym 0.26.x and later.
 
 try:
-    import gym  # type: ignore[import-untyped]
-
-    GYM_AVAILABLE = True
-    GYM_VERSION = importlib.metadata.version("gym")
+    GYM_AVAILABLE = importlib.util.find_spec("gym") is not None
+    GYM_VERSION = importlib.metadata.version("gym") if GYM_AVAILABLE else "0.0.0"
 except ImportError:
     GYM_AVAILABLE = False
     GYM_VERSION = "0.0.0"
@@ -31,10 +30,8 @@ except ImportError:
 # ── Stable-Baselines3 ────────────────────────────────────────────────────────
 
 try:
-    import stable_baselines3  # type: ignore[import-untyped]
-
-    SB3_AVAILABLE = True
-    SB3_VERSION = importlib.metadata.version("stable-baselines3")
+    SB3_AVAILABLE = importlib.util.find_spec("stable_baselines3") is not None
+    SB3_VERSION = importlib.metadata.version("stable-baselines3") if SB3_AVAILABLE else "0.0.0"
 except ImportError:
     SB3_AVAILABLE = False
     SB3_VERSION = "0.0.0"

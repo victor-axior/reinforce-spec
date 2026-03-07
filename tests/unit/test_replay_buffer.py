@@ -92,11 +92,9 @@ class TestPrioritizedReplayBuffer:
         assert np.max(weights) <= 1.01
 
     def test_beta_annealing(self) -> None:
-        buf = PrioritizedReplayBuffer(
-            capacity=100, beta_start=0.4, beta_end=1.0, beta_frames=100
-        )
+        buf = PrioritizedReplayBuffer(capacity=100, beta_start=0.4, beta_end=1.0, beta_frames=100)
         assert buf.beta == pytest.approx(0.4)
-        for i in range(10):
+        for _i in range(10):
             buf.add(_make_transition())
         buf.sample(batch_size=1)
         assert buf.beta > 0.4

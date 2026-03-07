@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import pytest
 
 from reinforce_spec._internal._policy import PolicyManager, PolicyMetadata
 from reinforce_spec.types import PolicyStage
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ── PolicyMetadata ───────────────────────────────────────────────────────────
 
@@ -20,16 +22,16 @@ class TestPolicyMetadata:
     """Test the metadata dataclass round-trip."""
 
     def _make_meta(self, **overrides) -> PolicyMetadata:
-        defaults = dict(
-            policy_id="v001",
-            version=1,
-            stage=PolicyStage.CANDIDATE,
-            created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
-            train_steps=0,
-            metrics={},
-            checksum="abc123",
-            parent_id=None,
-        )
+        defaults = {
+            "policy_id": "v001",
+            "version": 1,
+            "stage": PolicyStage.CANDIDATE,
+            "created_at": datetime(2024, 1, 1, tzinfo=UTC),
+            "train_steps": 0,
+            "metrics": {},
+            "checksum": "abc123",
+            "parent_id": None,
+        }
         defaults.update(overrides)
         return PolicyMetadata(**defaults)
 
@@ -43,7 +45,7 @@ class TestPolicyMetadata:
 
     def test_round_trip(self) -> None:
         meta = self._make_meta(
-            promoted_at=datetime(2024, 2, 1, tzinfo=timezone.utc),
+            promoted_at=datetime(2024, 2, 1, tzinfo=UTC),
             metrics={"loss": 0.1},
         )
         d = meta.to_dict()
@@ -153,9 +155,9 @@ class TestPolicyManager:
         assert result == ""
 
     def test_promotion_order(self) -> None:
-        assert PolicyManager.PROMOTION_ORDER == [
+        assert [
             PolicyStage.CANDIDATE,
             PolicyStage.SHADOW,
             PolicyStage.CANARY,
             PolicyStage.PRODUCTION,
-        ]
+        ] == PolicyManager.PROMOTION_ORDER

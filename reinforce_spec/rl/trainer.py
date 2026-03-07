@@ -66,7 +66,10 @@ class Trainer:
         replay_buffer: PrioritizedReplayBuffer | None = None,
     ) -> None:
         self._config = config or RLConfig()
-        self._manager = policy_manager or PolicyManager(self._config)
+        self._manager = policy_manager or PolicyManager(
+            storage_dir=self._config.policy_weights_dir,
+            config=self._config,
+        )
         self._buffer = replay_buffer or PrioritizedReplayBuffer(capacity=10_000)
 
     @property
@@ -112,10 +115,10 @@ class Trainer:
                 policy_version=self._manager.active_version or "none",
             )
 
-        transitions, indices, weights = self._buffer.sample(batch_size)
+        transitions, _indices, _weights = self._buffer.sample(batch_size)
 
         # Run PPO update
-        result = policy.train(total_timesteps=steps)
+        result = policy.train_on_batch(transitions, total_timesteps=steps)
 
         # Compute mean reward from sampled transitions
         mean_reward = sum(t.reward for t in transitions) / len(transitions)

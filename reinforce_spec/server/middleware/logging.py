@@ -9,12 +9,15 @@ Provides structured request/response logging with:
 from __future__ import annotations
 
 import time
+from typing import TYPE_CHECKING
 
 from loguru import logger
-from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 from reinforce_spec._internal._utils import generate_request_id
+
+if TYPE_CHECKING:
+    from fastapi import Request, Response
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):

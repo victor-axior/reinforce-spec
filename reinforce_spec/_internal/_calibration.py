@@ -12,13 +12,15 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
 from reinforce_spec._exceptions import CalibrationError
 from reinforce_spec._internal._rubric import Dimension
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -83,7 +85,11 @@ class ScoreCalibrator:
                 for item in data
             ]
         except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
-            logger.warning("calibration_anchors_load_failed | path={path} error={error}", path=str(path), error=str(e))
+            logger.warning(
+                "calibration_anchors_load_failed | path={path} error={error}",
+                path=str(path),
+                error=str(e),
+            )
             return []
 
     def calibrate_anchor_based(
@@ -135,10 +141,7 @@ class ScoreCalibrator:
             mean_human = sum(human_scores) / len(human_scores)
             mean_judge = sum(judge_scores) / len(judge_scores)
 
-            if mean_judge > 0:
-                scale = mean_human / mean_judge
-            else:
-                scale = 1.0
+            scale = mean_human / mean_judge if mean_judge > 0 else 1.0
 
             scaling_factors[dim.value] = scale
             offsets[dim.value] = 0.0

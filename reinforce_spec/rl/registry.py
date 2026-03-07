@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import dataclasses
 from pathlib import Path
-from typing import Any
 
 from loguru import logger
 
@@ -66,7 +65,7 @@ class PolicyRegistry:
     ) -> None:
         self._config = config or RLConfig()
         self._weights_dir = Path(weights_dir) if weights_dir else self._config.policy_weights_dir
-        self._manager = PolicyManager(self._config)
+        self._manager = PolicyManager(storage_dir=self._weights_dir, config=self._config)
 
     @property
     def manager(self) -> PolicyManager:

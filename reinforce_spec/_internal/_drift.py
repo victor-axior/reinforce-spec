@@ -181,7 +181,11 @@ class DriftDetector:
             is_drifted=psi > self._psi_threshold,
             details={
                 "interpretation": (
-                    "no_shift" if psi < 0.1 else "moderate_shift" if psi < 0.25 else "significant_shift"
+                    "no_shift"
+                    if psi < 0.1
+                    else "moderate_shift"
+                    if psi < 0.25
+                    else "significant_shift"
                 ),
             },
         )

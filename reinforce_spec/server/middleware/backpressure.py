@@ -7,12 +7,14 @@ Health endpoints bypass the limiter.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
-from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import JSONResponse
+
+if TYPE_CHECKING:
+    from fastapi import Request, Response
 
 
 class BackpressureMiddleware(BaseHTTPMiddleware):
@@ -45,7 +47,7 @@ class BackpressureMiddleware(BaseHTTPMiddleware):
         if request.url.path.startswith("/v1/health"):
             return await call_next(request)
 
-        if not self._semaphore._value:  # noqa: SLF001
+        if not self._semaphore._value:
             logger.warning(
                 "backpressure_triggered",
                 max_concurrent=self._max_concurrent,

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-from unittest.mock import patch
 
 import pytest
 
@@ -11,8 +10,8 @@ from reinforce_spec._compat import (
     GYM_AVAILABLE,
     GYM_VERSION,
     MLFLOW_AVAILABLE,
-    PYDANTIC_V2,
     PROMETHEUS_AVAILABLE,
+    PYDANTIC_V2,
     REDIS_AVAILABLE,
     SB3_AVAILABLE,
     SB3_VERSION,

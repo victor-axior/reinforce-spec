@@ -19,10 +19,8 @@ from __future__ import annotations
 
 import importlib
 import json
-import shutil
 import sys
-from datetime import datetime, timezone
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
@@ -30,8 +28,9 @@ import pytest
 
 from reinforce_spec._internal._bias import BiasDetector
 from reinforce_spec._internal._ope import OPEResult
-from reinforce_spec.types import PolicyStage
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # _compat.py — import-failure branches via importlib.reload
@@ -48,16 +47,6 @@ class TestCompatImportFallbacks:
 
         # Save originals
         saved = {k: sys.modules.get(k) for k in module_names}
-        saved_flags = {
-            "GYM_AVAILABLE": compat.GYM_AVAILABLE,
-            "GYM_VERSION": compat.GYM_VERSION,
-            "SB3_AVAILABLE": compat.SB3_AVAILABLE,
-            "SB3_VERSION": compat.SB3_VERSION,
-            "SENTENCE_TRANSFORMERS_AVAILABLE": compat.SENTENCE_TRANSFORMERS_AVAILABLE,
-            "REDIS_AVAILABLE": compat.REDIS_AVAILABLE,
-            "MLFLOW_AVAILABLE": compat.MLFLOW_AVAILABLE,
-            "PROMETHEUS_AVAILABLE": compat.PROMETHEUS_AVAILABLE,
-        }
 
         try:
             for name in module_names:
@@ -73,7 +62,7 @@ class TestCompatImportFallbacks:
             importlib.reload(compat)
 
     def test_gym_not_available(self) -> None:
-        compat = self._reload_with_missing("gym", "gymnasium")
+        self._reload_with_missing("gym", "gymnasium")
         # Assertions happen inside the reload — the except branch is hit.
         # We verify the flag was set to False during reload.
         # (After finally block, it's restored, but the coverage was recorded.)
@@ -105,7 +94,9 @@ class TestPolicyManagerEdgeCases:
 
     @patch("reinforce_spec._internal._policy.PPOPolicy")
     def test_get_production_from_disk_registry(
-        self, MockPPO: MagicMock, tmp_path: Path,
+        self,
+        MockPPO: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """Load production policy from a manager with no cached _active_policy."""
         from reinforce_spec._internal._policy import PolicyManager
@@ -134,7 +125,9 @@ class TestPolicyManagerEdgeCases:
 
     @patch("reinforce_spec._internal._policy.PPOPolicy")
     def test_symlink_fallback_with_existing_symlink(
-        self, MockPPO: MagicMock, tmp_path: Path,
+        self,
+        MockPPO: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """Symlink fallback when a symlink already exists."""
         from reinforce_spec._internal._policy import PolicyManager
@@ -231,7 +224,9 @@ class TestOPEEdgeCases:
         ]
 
         # Force LinAlgError by patching np.linalg.solve
-        with patch("reinforce_spec._internal._ope.np.linalg.solve", side_effect=np.linalg.LinAlgError):
+        with patch(
+            "reinforce_spec._internal._ope.np.linalg.solve", side_effect=np.linalg.LinAlgError
+        ):
             result = fitted_q_evaluation(transitions, mock_policy, n_iterations=2)
 
         assert isinstance(result, OPEResult)
@@ -375,18 +370,26 @@ class TestScorerEdgeCases:
         dim_scores = {
             d: {"score": 3.0, "reasoning": "ok", "justification": "ok"}
             for d in [
-                "compliance_regulatory", "security_architecture", "data_governance",
-                "integration_enterprise", "scalability_performance",
-                "operational_excellence", "business_continuity",
-                "vendor_management", "cost_optimization",
-                "change_management", "observability_monitoring",
+                "compliance_regulatory",
+                "security_architecture",
+                "data_governance",
+                "integration_enterprise",
+                "scalability_performance",
+                "operational_excellence",
+                "business_continuity",
+                "vendor_management",
+                "cost_optimization",
+                "change_management",
+                "observability_monitoring",
                 "documentation_knowledge",
             ]
         }
-        response_json = json.dumps({
-            "evaluations": dim_scores,
-            "composite_score": 3.0,
-        })
+        response_json = json.dumps(
+            {
+                "evaluations": dim_scores,
+                "composite_score": 3.0,
+            }
+        )
         mock_client.complete.return_value = (response_json, MagicMock())
 
         config = ScoringConfig(
@@ -477,11 +480,17 @@ class TestScorerEdgeCases:
         dim_scores = {
             d: {"score": 3.0}
             for d in [
-                "compliance_regulatory", "security_architecture", "data_governance",
-                "integration_enterprise", "scalability_performance",
-                "operational_excellence", "business_continuity",
-                "vendor_management", "cost_optimization",
-                "change_management", "observability_monitoring",
+                "compliance_regulatory",
+                "security_architecture",
+                "data_governance",
+                "integration_enterprise",
+                "scalability_performance",
+                "operational_excellence",
+                "business_continuity",
+                "vendor_management",
+                "cost_optimization",
+                "change_management",
+                "observability_monitoring",
                 "documentation_knowledge",
             ]
         }

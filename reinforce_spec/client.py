@@ -16,9 +16,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from loguru import logger
-
 import numpy as np
+from loguru import logger
 
 from reinforce_spec._exceptions import InsufficientCandidatesError
 from reinforce_spec._internal._client import OpenRouterClient
@@ -230,8 +229,12 @@ class ReinforceSpec:
         assert self._env is not None
 
         # Resolve customer type and weights
-        ct = CustomerType(customer_type) if isinstance(customer_type, str) and customer_type else None
-        weights = get_preset(ct.value if ct else "default")
+        ct = (
+            CustomerType(customer_type)
+            if isinstance(customer_type, str) and customer_type
+            else None
+        )
+        weights = get_preset(ct or CustomerType.DEFAULT)
 
         # Parse selection method
         if isinstance(selection_method, str):
@@ -250,9 +253,7 @@ class ReinforceSpec:
             scored = await self._scorer.score_candidates(candidates, weights)
 
             # 3. Select best
-            selected, selection_meta = self._selector.select(
-                scored, method=selection_method
-            )
+            selected, selection_meta = self._selector.select(scored, method=selection_method)
 
             # 4. Persist candidates
             for c in scored:
@@ -272,7 +273,11 @@ class ReinforceSpec:
                 await self._storage.save_dimension_scores(
                     spec_id=spec_id,
                     scores=[
-                        {"dimension": ds.dimension, "score": ds.score, "justification": ds.justification}
+                        {
+                            "dimension": ds.dimension,
+                            "score": ds.score,
+                            "justification": ds.justification,
+                        }
                         for ds in c.dimension_scores
                     ],
                 )
@@ -319,9 +324,7 @@ class ReinforceSpec:
             for c in scored:
                 for ds in c.dimension_scores:
                     all_dims.setdefault(ds.dimension, []).append(ds.score)
-            scoring_summary = {
-                dim: sum(scores) / len(scores) for dim, scores in all_dims.items()
-            }
+            scoring_summary = {dim: sum(scores) / len(scores) for dim, scores in all_dims.items()}
 
         response = SelectionResponse(
             request_id=request_id,
@@ -431,11 +434,7 @@ class ReinforceSpec:
             version=production.policy_id if production else "none",
             stage=production.stage if production else PolicyStage.CANDIDATE,
             training_episodes=production.train_steps if production else 0,
-            mean_reward=(
-                float(production.metrics.get("mean_reward", 0.0))
-                if production
-                else 0.0
-            ),
+            mean_reward=(float(production.metrics.get("mean_reward", 0.0)) if production else 0.0),
             explore_rate=self._config.rl.explore_rate_initial,
             drift_psi=drift_psi,
             last_trained=production.created_at if production else None,
@@ -475,9 +474,7 @@ class ReinforceSpec:
         sample_size = min(self._config.rl.batch_size, self._replay_buffer.size)
 
         # Sample from replay buffer
-        transitions, is_weights, tree_indices = self._replay_buffer.sample(
-            sample_size
-        )
+        transitions, is_weights, tree_indices = self._replay_buffer.sample(sample_size)
 
         if not transitions:
             return {"status": "empty_buffer"}

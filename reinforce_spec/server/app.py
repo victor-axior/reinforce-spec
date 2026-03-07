@@ -10,12 +10,12 @@ Creates a fully wired FastAPI application with:
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import TYPE_CHECKING
 
-from loguru import logger
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from loguru import logger
 
 from reinforce_spec._exceptions import (
     CircuitBreakerOpenError,
@@ -32,6 +32,9 @@ from reinforce_spec.server.middleware import BackpressureMiddleware, RequestLogg
 from reinforce_spec.server.openapi import custom_openapi
 from reinforce_spec.server.routes import router
 from reinforce_spec.version import VERSION
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 
 @asynccontextmanager
@@ -134,9 +137,7 @@ def _register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(RateLimitError)
-    async def rate_limit_handler(
-        request: Request, exc: RateLimitError
-    ) -> JSONResponse:
+    async def rate_limit_handler(request: Request, exc: RateLimitError) -> JSONResponse:
         return JSONResponse(
             status_code=429,
             content={
@@ -157,9 +158,7 @@ def _register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(ScoringError)
-    async def scoring_error_handler(
-        request: Request, exc: ScoringError
-    ) -> JSONResponse:
+    async def scoring_error_handler(request: Request, exc: ScoringError) -> JSONResponse:
         logger.error("scoring_error | error={error}", error=str(exc))
         return JSONResponse(
             status_code=502,
@@ -167,19 +166,19 @@ def _register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(PolicyNotFoundError)
-    async def policy_not_found_handler(
-        request: Request, exc: PolicyNotFoundError
-    ) -> JSONResponse:
+    async def policy_not_found_handler(request: Request, exc: PolicyNotFoundError) -> JSONResponse:
         return JSONResponse(
             status_code=404,
             content={"error": "policy_not_found", "message": str(exc)},
         )
 
     @app.exception_handler(ReinforceSpecError)
-    async def generic_handler(
-        request: Request, exc: ReinforceSpecError
-    ) -> JSONResponse:
-        logger.error("unhandled_domain_error | error={error} type={type}", error=str(exc), type=type(exc).__name__)
+    async def generic_handler(request: Request, exc: ReinforceSpecError) -> JSONResponse:
+        logger.error(
+            "unhandled_domain_error | error={error} type={type}",
+            error=str(exc),
+            type=type(exc).__name__,
+        )
         return JSONResponse(
             status_code=500,
             content={"error": "internal_error", "message": str(exc)},

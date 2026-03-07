@@ -194,8 +194,7 @@ class Storage:
 
         """
         async with self.db.execute(
-            "SELECT response_json FROM idempotency_keys "
-            "WHERE key = ? AND expires_at > ?",
+            "SELECT response_json FROM idempotency_keys " "WHERE key = ? AND expires_at > ?",
             (key, utc_now().isoformat()),
         ) as cursor:
             row = await cursor.fetchone()
@@ -218,8 +217,13 @@ class Storage:
         """
         now = utc_now()
         expires = datetime(
-            now.year, now.month, now.day, now.hour + ttl_hours,
-            now.minute, now.second, tzinfo=now.tzinfo,
+            now.year,
+            now.month,
+            now.day,
+            now.hour + ttl_hours,
+            now.minute,
+            now.second,
+            tzinfo=now.tzinfo,
         )
         await self.db.execute(
             "INSERT OR REPLACE INTO idempotency_keys (key, response_json, created_at, expires_at) "
@@ -423,9 +427,7 @@ class Storage:
             )
         await self.db.commit()
 
-    async def get_candidates_for_request(
-        self, request_id: str
-    ) -> list[dict[str, Any]]:
+    async def get_candidates_for_request(self, request_id: str) -> list[dict[str, Any]]:
         """Retrieve all candidates for a request, ordered by score.
 
         Parameters
@@ -484,9 +486,7 @@ class Storage:
         await self.db.commit()
         return feedback_id
 
-    async def get_feedback_for_request(
-        self, request_id: str
-    ) -> list[dict[str, Any]]:
+    async def get_feedback_for_request(self, request_id: str) -> list[dict[str, Any]]:
         """Retrieve all feedback for a request.
 
         Parameters

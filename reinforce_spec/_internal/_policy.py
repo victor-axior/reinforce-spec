@@ -14,21 +14,23 @@ import dataclasses
 import hashlib
 import json
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import numpy as np
 from loguru import logger
 
-from reinforce_spec._compat import SB3_AVAILABLE, require_dependency
+from reinforce_spec._compat import require_dependency
 from reinforce_spec._exceptions import PolicyNotFoundError, PolicyTrainingError
 from reinforce_spec._internal._config import RLConfig
-from reinforce_spec._internal._environment import PER_CANDIDATE_FEATURES, SpecSelectionEnv
-from reinforce_spec._internal._replay_buffer import Transition
+from reinforce_spec._internal._environment import SpecSelectionEnv
 from reinforce_spec._internal._utils import utc_now
 from reinforce_spec.types import PolicyStage
 
+if TYPE_CHECKING:
+    import numpy as np
+
+    from reinforce_spec._internal._replay_buffer import Transition
 
 # ── PPO Policy ────────────────────────────────────────────────────────────────
 
@@ -120,7 +122,10 @@ class PPOPolicy:
         # Get action probabilities for confidence
         obs_tensor = self._model.policy.obs_to_tensor(observation)[0]
         distribution = self._model.policy.get_distribution(obs_tensor)
-        probs = distribution.distribution.probs.detach().cpu().numpy().flatten()
+        probs_tensor = getattr(distribution.distribution, "probs", None)
+        if probs_tensor is None:
+            return action_int, 0.0
+        probs = probs_tensor.detach().cpu().numpy().flatten()
         confidence = float(probs[action_int]) if action_int < len(probs) else 0.0
 
         return action_int, confidence
@@ -184,7 +189,9 @@ class PPOPolicy:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         self._model.save(str(path))
-        logger.info("policy_saved | path={path} steps={steps}", path=str(path), steps=self._train_steps)
+        logger.info(
+            "policy_saved | path={path} steps={steps}", path=str(path), steps=self._train_steps
+        )
         return path
 
     def load(self, path: str | Path) -> None:
@@ -199,7 +206,10 @@ class PPOPolicy:
         """Get action probability distribution for an observation."""
         obs_tensor = self._model.policy.obs_to_tensor(observation)[0]
         distribution = self._model.policy.get_distribution(obs_tensor)
-        return distribution.distribution.probs.detach().cpu().numpy().flatten()
+        probs_tensor = getattr(distribution.distribution, "probs", None)
+        if probs_tensor is None:
+            return np.array([], dtype=np.float64)
+        return probs_tensor.detach().cpu().numpy().flatten()
 
 
 # ── Policy Metadata ──────────────────────────────────────────────────────────
@@ -256,14 +266,10 @@ class PolicyMetadata:
             stage=PolicyStage(data["stage"]),
             created_at=datetime.fromisoformat(data["created_at"]),
             promoted_at=(
-                datetime.fromisoformat(data["promoted_at"])
-                if data.get("promoted_at")
-                else None
+                datetime.fromisoformat(data["promoted_at"]) if data.get("promoted_at") else None
             ),
             archived_at=(
-                datetime.fromisoformat(data["archived_at"])
-                if data.get("archived_at")
-                else None
+                datetime.fromisoformat(data["archived_at"]) if data.get("archived_at") else None
             ),
             train_steps=data.get("train_steps", 0),
             metrics=data.get("metrics", {}),
@@ -330,9 +336,7 @@ class PolicyManager:
         if registry_path.exists():
             with open(registry_path) as f:
                 data = json.load(f)
-            self._registry = {
-                k: PolicyMetadata.from_dict(v) for k, v in data.items()
-            }
+            self._registry = {k: PolicyMetadata.from_dict(v) for k, v in data.items()}
 
     def _save_registry(self) -> None:
         """Persist the registry to disk."""
@@ -345,6 +349,14 @@ class PolicyManager:
     def active_policy(self) -> PPOPolicy | None:
         """Return the currently loaded production policy, if any."""
         return self._active_policy
+
+    @property
+    def active_version(self) -> str | None:
+        """Return the currently promoted production policy identifier, if any."""
+        for meta in self._registry.values():
+            if meta.stage == PolicyStage.PRODUCTION:
+                return meta.policy_id
+        return None
 
     def create_policy(
         self,
@@ -427,7 +439,9 @@ class PolicyManager:
         current_idx = self.PROMOTION_ORDER.index(meta.stage)
 
         if current_idx >= len(self.PROMOTION_ORDER) - 1:
-            logger.warning("policy_already_at_max_stage | policy_id={policy_id}", policy_id=policy_id)
+            logger.warning(
+                "policy_already_at_max_stage | policy_id={policy_id}", policy_id=policy_id
+            )
             return meta
 
         new_stage = self.PROMOTION_ORDER[current_idx + 1]

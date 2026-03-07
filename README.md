@@ -288,6 +288,57 @@ make check          # All checks (lint + typecheck + test)
 make serve-dev      # Start dev server with auto-reload
 ```
 
+## Deploy on AWS (ECS Fargate)
+
+This repository includes an AWS deployment scaffold for production-style ECS Fargate:
+
+- CloudFormation stack: `infra/aws/ecs-fargate/stack.yaml`
+- Deployment script: `scripts/aws/deploy_ecs_fargate.sh`
+- Runbook: `infra/aws/ecs-fargate/README.md`
+
+The stack provisions:
+
+- Internet-facing ALB with HTTPS
+- ECS Fargate service
+- EFS mount at `/app/data` for persistent SQLite/policy state
+- Secrets Manager injection for `OPENROUTER_API_KEY`
+- CPU target-tracking autoscaling
+
+Quick start:
+
+```bash
+chmod +x scripts/aws/deploy_ecs_fargate.sh
+
+scripts/aws/deploy_ecs_fargate.sh \
+  --region us-east-1 \
+  --vpc-id vpc-xxxxxxxx \
+  --public-subnets subnet-public-a,subnet-public-b \
+  --private-subnets subnet-private-a,subnet-private-b \
+  --certificate-arn arn:aws:acm:us-east-1:123456789012:certificate/xxxx \
+  --openrouter-secret-arn arn:aws:secretsmanager:us-east-1:123456789012:secret:reinforce-spec/openrouter-xxxx
+```
+
+Optional custom domain:
+
+```bash
+scripts/aws/deploy_ecs_fargate.sh \
+  --region us-east-1 \
+  --vpc-id vpc-xxxxxxxx \
+  --public-subnets subnet-public-a,subnet-public-b \
+  --private-subnets subnet-private-a,subnet-private-b \
+  --certificate-arn arn:aws:acm:us-east-1:123456789012:certificate/xxxx \
+  --openrouter-secret-arn arn:aws:secretsmanager:us-east-1:123456789012:secret:reinforce-spec/openrouter-xxxx \
+  --hosted-zone-id Z1234567890ABCDE \
+  --api-domain api.example.com
+```
+
+After deployment, smoke check:
+
+```bash
+curl -sSf https://<alb-dns>/v1/health
+curl -sSf https://<alb-dns>/v1/health/ready
+```
+
 ## Project Structure
 
 ```

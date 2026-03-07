@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 from pydantic import ValidationError
 
@@ -112,16 +114,20 @@ class TestSelectionRequest:
 
     def test_rejects_single_candidate(self) -> None:
         with pytest.raises(ValidationError):
-            SelectionRequest(candidates=[
-                CandidateSpec(content="Only one spec"),
-            ])
+            SelectionRequest(
+                candidates=[
+                    CandidateSpec(content="Only one spec"),
+                ]
+            )
 
     def test_auto_indexing(self) -> None:
-        req = SelectionRequest(candidates=[
-            CandidateSpec(content="Spec A"),
-            CandidateSpec(content="Spec B"),
-            CandidateSpec(content="Spec C"),
-        ])
+        req = SelectionRequest(
+            candidates=[
+                CandidateSpec(content="Spec A"),
+                CandidateSpec(content="Spec B"),
+                CandidateSpec(content="Spec C"),
+            ]
+        )
         assert [c.index for c in req.candidates] == [0, 1, 2]
 
 
@@ -129,7 +135,7 @@ class TestSelectionResponse:
     """Test SelectionResponse model."""
 
     def test_construction(self) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         selected = CandidateSpec(content="Best spec", composite_score=4.5)
         resp = SelectionResponse(
@@ -139,14 +145,14 @@ class TestSelectionResponse:
             selection_method="hybrid",
             selection_confidence=0.95,
             latency_ms=123.4,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
         )
         assert resp.request_id == "req-1"
         assert resp.selection_confidence == 0.95
         assert resp.latency_ms == 123.4
 
     def test_default_scoring_summary(self) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         resp = SelectionResponse(
             request_id="req-2",
@@ -154,7 +160,7 @@ class TestSelectionResponse:
             all_candidates=[],
             selection_method="scoring_only",
             latency_ms=50.0,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
         )
         assert resp.scoring_summary == {}
 

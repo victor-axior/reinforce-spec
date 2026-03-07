@@ -12,13 +12,11 @@ Covers:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
-
 
 # ── OpenAPI utilities ────────────────────────────────────────────────────────
 
@@ -60,6 +58,7 @@ class TestCustomOpenAPI:
 
         # Mock yaml import failure
         import builtins
+
         original_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -124,46 +123,43 @@ class TestTopLevelLazyImports:
 
     def test_reinforce_spec_client(self) -> None:
         from reinforce_spec import ReinforceSpec
+
         assert ReinforceSpec is not None
 
     def test_enterprise_scorer(self) -> None:
         from reinforce_spec import EnterpriseScorer
+
         assert EnterpriseScorer is not None
 
     def test_dimension(self) -> None:
         from reinforce_spec import Dimension
+
         assert Dimension is not None
 
     def test_types(self) -> None:
         from reinforce_spec import (
             CandidateSpec,
-            DimensionScore,
-            ScoringWeights,
-            SelectionMethod,
-            SelectionResponse,
-            SpecFormat,
-            SpecResult,
         )
+
         assert CandidateSpec is not None
 
     def test_exceptions(self) -> None:
         from reinforce_spec import (
-            ConfigurationError,
             InputValidationError,
-            PolicyError,
             ReinforceSpecError,
-            ScoringError,
-            UpstreamError,
         )
+
         assert issubclass(InputValidationError, ReinforceSpecError)
 
     def test_unknown_attr_raises(self) -> None:
         import reinforce_spec
+
         with pytest.raises(AttributeError, match="no attribute"):
             reinforce_spec.__getattr__("NonExistent_Thing_123")
 
     def test_version(self) -> None:
         import reinforce_spec
+
         assert isinstance(reinforce_spec.__version__, str)
 
 
@@ -192,19 +188,23 @@ class TestObservabilityLazyImports:
 
     def test_metrics_collector(self) -> None:
         from reinforce_spec.observability import MetricsCollector
+
         assert MetricsCollector is not None
 
     def test_audit_logger(self) -> None:
         from reinforce_spec.observability import AuditLogger
+
         assert AuditLogger is not None
 
     def test_unknown_attr_raises(self) -> None:
         from reinforce_spec import observability
+
         with pytest.raises(AttributeError):
             observability.__getattr__("NoSuchThing")
 
     def test_metrics_reexport(self) -> None:
         from reinforce_spec.observability.metrics import MetricsCollector
+
         assert MetricsCollector is not None
 
 
@@ -214,6 +214,7 @@ class TestObservabilityLazyImports:
 class TestServerInit:
     def test_server_package_importable(self) -> None:
         import reinforce_spec.server
+
         assert reinforce_spec.server is not None
 
 
@@ -223,6 +224,7 @@ class TestServerInit:
 class TestInternalInit:
     def test_internal_package_importable(self) -> None:
         import reinforce_spec._internal
+
         assert reinforce_spec._internal is not None
 
 
@@ -232,10 +234,9 @@ class TestInternalInit:
 class TestCalibrationModule:
     def test_reexports(self) -> None:
         from reinforce_spec.scoring.calibration import (
-            CalibrationAnchor,
-            CalibrationResult,
             ScoreCalibrator,
         )
+
         assert ScoreCalibrator is not None
 
 
@@ -245,4 +246,5 @@ class TestCalibrationModule:
 class TestJudgeModule:
     def test_reexport(self) -> None:
         from reinforce_spec.scoring.judge import EnterpriseScorer
+
         assert EnterpriseScorer is not None

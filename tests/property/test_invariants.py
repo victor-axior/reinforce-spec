@@ -7,11 +7,10 @@ edge cases that example-based tests might miss.
 from __future__ import annotations
 
 import hypothesis.strategies as st
-import pytest
 from hypothesis import given, settings
 
 from reinforce_spec._internal._utils import clamp, safe_divide
-from reinforce_spec.types import CandidateSpec, SpecFormat, detect_format
+from reinforce_spec.types import SpecFormat, detect_format
 
 
 class TestClampProperties:

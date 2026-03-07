@@ -13,11 +13,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
-from reinforce_spec._exceptions import ScoringError
 from reinforce_spec._internal._bias import (
     BiasDetector,
     PairwiseComparison,
@@ -25,12 +24,13 @@ from reinforce_spec._internal._bias import (
     check_self_enhancement_risk,
 )
 from reinforce_spec._internal._calibration import ScoreCalibrator
-from reinforce_spec._internal._client import OpenRouterClient
-from reinforce_spec._internal._config import ScoringConfig
 from reinforce_spec._internal._rubric import Dimension, format_rubric_for_prompt
 from reinforce_spec._internal._utils import Timer
 from reinforce_spec.types import CandidateSpec, DimensionScore, ScoringWeights
 
+if TYPE_CHECKING:
+    from reinforce_spec._internal._client import OpenRouterClient
+    from reinforce_spec._internal._config import ScoringConfig
 
 # ── Judge Prompts ─────────────────────────────────────────────────────────────
 
@@ -186,9 +186,7 @@ class EnterpriseScorer:
             # Phase 4: Pairwise comparison of top-K
             top_k = min(self._config.pairwise_top_k, len(scored_candidates))
             if top_k >= 2:
-                pairwise_rankings = await self._pairwise_rank_top_k(
-                    scored_candidates[:top_k]
-                )
+                pairwise_rankings = await self._pairwise_rank_top_k(scored_candidates[:top_k])
                 # Re-rank top-K based on pairwise results
                 scored_candidates = self._merge_rankings(
                     scored_candidates, pairwise_rankings, top_k
@@ -219,9 +217,7 @@ class EnterpriseScorer:
         for candidate in candidates:
             for judge_model in judge_models:
                 # Check self-enhancement risk
-                is_risky = check_self_enhancement_risk(
-                    judge_model, candidate.source_model
-                )
+                is_risky = check_self_enhancement_risk(judge_model, candidate.source_model)
                 if is_risky and len(judge_models) > 1:
                     logger.info(
                         "skipping_same_family_judge | judge={judge} generator={generator}",
@@ -334,7 +330,7 @@ class EnterpriseScorer:
                 dim_data = evaluations.get(dim.value, {})
                 if isinstance(dim_data, dict):
                     score = float(dim_data.get("score", 1.0))
-                elif isinstance(dim_data, (int, float)):
+                elif isinstance(dim_data, int | float):
                     score = float(dim_data)
                 else:
                     score = 1.0
@@ -391,19 +387,16 @@ class EnterpriseScorer:
 
         for i in range(len(top_candidates)):
             for j in range(i + 1, len(top_candidates)):
-                tasks.append(
-                    self._pairwise_compare(
-                        top_candidates[i], top_candidates[j]
-                    )
-                )
+                tasks.append(self._pairwise_compare(top_candidates[i], top_candidates[j]))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for result in results:
-            if isinstance(result, Exception):
-                logger.warning("pairwise_comparison_failed | error={error}", error=str(result))
+            if isinstance(result, PairwiseComparison):
+                comparisons.append(result)
                 continue
-            comparisons.append(result)
+
+            logger.warning("pairwise_comparison_failed | error={error}", error=str(result))
 
         return comparisons
 

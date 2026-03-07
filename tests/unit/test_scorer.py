@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -16,7 +16,6 @@ from reinforce_spec._internal._scorer import (
     _build_pointwise_prompt,
 )
 from reinforce_spec.types import CandidateSpec, DimensionScore, ScoringWeights
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,12 +38,14 @@ def _make_score_response(score: float = 3.0) -> str:
             "justification": "Adequate",
             "evidence": ["some text"],
         }
-    return json.dumps({
-        "evaluations": evaluations,
-        "composite_score": score,
-        "top_strengths": ["s1"],
-        "critical_gaps": ["g1"],
-    })
+    return json.dumps(
+        {
+            "evaluations": evaluations,
+            "composite_score": score,
+            "top_strengths": ["s1"],
+            "critical_gaps": ["g1"],
+        }
+    )
 
 
 def _make_candidates(n: int = 3) -> list[CandidateSpec]:
@@ -264,13 +265,15 @@ class TestScoringPipeline:
         resp = _make_score_response(3.0)
         pairwise_resp = json.dumps({"overall_winner": "A", "confidence": 0.8})
         # First calls are pointwise, then pairwise
-        client.complete = AsyncMock(side_effect=[
-            (resp, MagicMock()),
-            (resp, MagicMock()),
-            (resp, MagicMock()),
-            (pairwise_resp, MagicMock()),
-            (pairwise_resp, MagicMock()),
-        ])
+        client.complete = AsyncMock(
+            side_effect=[
+                (resp, MagicMock()),
+                (resp, MagicMock()),
+                (resp, MagicMock()),
+                (pairwise_resp, MagicMock()),
+                (pairwise_resp, MagicMock()),
+            ]
+        )
 
         config = ScoringConfig(
             scoring_mode="single_judge",
@@ -287,18 +290,23 @@ class TestScoringPipeline:
         client = _make_mock_client()
         a_resp = json.dumps({"overall_winner": "A"})
         b_resp = json.dumps({"overall_winner": "B"})
-        client.complete = AsyncMock(side_effect=[
-            (a_resp, MagicMock()),
-            (b_resp, MagicMock()),
-        ])
+        client.complete = AsyncMock(
+            side_effect=[
+                (a_resp, MagicMock()),
+                (b_resp, MagicMock()),
+            ]
+        )
 
         config = ScoringConfig(scoring_mode="single_judge", calibration_enabled=False)
         scorer = EnterpriseScorer(client, config)
 
         spec_a = _make_candidates(1)[0]
         spec_b = CandidateSpec(
-            index=1, content="Another spec text here", spec_type="api",
-            source_model="test/gen", composite_score=2.0,
+            index=1,
+            content="Another spec text here",
+            spec_type="api",
+            source_model="test/gen",
+            composite_score=2.0,
         )
         comp = await scorer._pairwise_compare(spec_a, spec_b)
         assert isinstance(comp, PairwiseComparison)

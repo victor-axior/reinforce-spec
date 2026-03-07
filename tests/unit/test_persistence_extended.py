@@ -88,12 +88,18 @@ class TestStorageExtended:
     async def test_get_candidates_for_request_sorted(self, storage: Storage) -> None:
         await storage.save_request(request_id="req-sort", n_specs=2)
         await storage.save_candidate(
-            request_id="req-sort", spec_id="s1", index_pos=0,
-            content="a", composite_score=2.0,
+            request_id="req-sort",
+            spec_id="s1",
+            index_pos=0,
+            content="a",
+            composite_score=2.0,
         )
         await storage.save_candidate(
-            request_id="req-sort", spec_id="s2", index_pos=1,
-            content="b", composite_score=4.0,
+            request_id="req-sort",
+            spec_id="s2",
+            index_pos=1,
+            content="b",
+            composite_score=4.0,
         )
         candidates = await storage.get_candidates_for_request("req-sort")
         assert len(candidates) == 2

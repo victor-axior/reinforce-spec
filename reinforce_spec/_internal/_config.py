@@ -8,7 +8,7 @@ falling back to insecure defaults.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -68,9 +68,7 @@ class RLConfig(BaseSettings):
     batch_size: int = Field(default=64, ge=16, description="Training batch size")
     feedback_reward_scale: float = Field(default=0.5, ge=0.0, le=2.0)
     policy_weights_dir: Path = Field(default=Path("data/weights"))
-    cold_start_threshold: int = Field(
-        default=200, ge=10, description="Episodes before shadow mode"
-    )
+    cold_start_threshold: int = Field(default=200, ge=10, description="Episodes before shadow mode")
     shadow_threshold: int = Field(
         default=500, ge=50, description="Episodes before canary promotion"
     )
@@ -161,9 +159,7 @@ class StorageConfig(BaseSettings):
 
     data_dir: str = Field(default="data", description="Root data directory")
     db_name: str = Field(default="reinforce_spec.db", description="SQLite database filename")
-    database_url: str = Field(
-        default="sqlite+aiosqlite:///data/db/reinforce_spec.db"
-    )
+    database_url: str = Field(default="sqlite+aiosqlite:///data/db/reinforce_spec.db")
     redis_url: str = Field(default="", description="Empty for in-memory fallback")
 
 
@@ -199,7 +195,7 @@ class AppConfig(BaseSettings):
     observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
 
     @model_validator(mode="after")
-    def validate_fail_closed(self) -> "AppConfig":
+    def validate_fail_closed(self) -> AppConfig:
         """Day-zero safe by default: fail closed on missing critical config."""
         if not self.llm.openrouter_api_key:
             raise ConfigurationError(
@@ -209,7 +205,7 @@ class AppConfig(BaseSettings):
         return self
 
     @classmethod
-    def from_env(cls, env_file: str | None = ".env") -> "AppConfig":
+    def from_env(cls, env_file: str | None = ".env") -> AppConfig:
         """Load configuration from environment variables and ``.env`` file.
 
         Returns
@@ -224,18 +220,11 @@ class AppConfig(BaseSettings):
 
         """
         try:
-            return cls(
-                llm=LLMConfig(_env_file=env_file, _env_file_encoding="utf-8"),
-                rl=RLConfig(_env_file=env_file, _env_file_encoding="utf-8"),
-                scoring=ScoringConfig(_env_file=env_file, _env_file_encoding="utf-8"),
-                resilience=ResilienceConfig(_env_file=env_file, _env_file_encoding="utf-8"),
-                server=ServerConfig(_env_file=env_file, _env_file_encoding="utf-8"),
-                storage=StorageConfig(_env_file=env_file, _env_file_encoding="utf-8"),
-                observability=ObservabilityConfig(
-                    _env_file=env_file,
-                    _env_file_encoding="utf-8",
-                ),
-            )
+            settings_kwargs: dict[str, Any] = {
+                "_env_file": env_file,
+                "_env_file_encoding": "utf-8",
+            }
+            return cast(AppConfig, cast(Any, cls)(**settings_kwargs))
         except Exception as e:
             raise ConfigurationError(
                 f"Failed to load configuration: {e}. "
@@ -243,7 +232,7 @@ class AppConfig(BaseSettings):
             ) from e
 
     @classmethod
-    def for_testing(cls) -> "AppConfig":
+    def for_testing(cls) -> AppConfig:
         """Return a configuration suitable for testing.
 
         Returns
@@ -253,12 +242,14 @@ class AppConfig(BaseSettings):
 
         """
         return cls(
-            llm=LLMConfig(
-                openrouter_api_key="test-key-not-real",
-                judge_models=["test/judge"],
-                fallback_models=["test/model"],
-                timeout_seconds=5.0,
-                max_retries=0,
+            llm=LLMConfig.model_validate(
+                {
+                    "OPENROUTER_API_KEY": "test-key-not-real",
+                    "judge_models": ["test/judge"],
+                    "fallback_models": ["test/model"],
+                    "timeout_seconds": 5.0,
+                    "max_retries": 0,
+                }
             ),
             rl=RLConfig(
                 policy_weights_dir=Path("/tmp/reinforce-spec-test-weights"),

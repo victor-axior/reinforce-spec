@@ -11,13 +11,17 @@ Examples
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from reinforce_spec._internal._ope import (
     OPEResult,
     importance_sampling,
     weighted_importance_sampling,
 )
-from reinforce_spec._internal._policy import PPOPolicy
-from reinforce_spec._internal._replay_buffer import Transition
+
+if TYPE_CHECKING:
+    from reinforce_spec._internal._policy import PPOPolicy
+    from reinforce_spec._internal._replay_buffer import Transition
 
 __all__ = [
     "OPEResult",

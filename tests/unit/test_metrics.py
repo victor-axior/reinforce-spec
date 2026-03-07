@@ -48,10 +48,13 @@ class TestMetricsCollectorEnabled:
     def test_record_score(self) -> None:
         mc = MetricsCollector()
         if mc._enabled:
-            mc.record_score(4.0, {
-                "compliance_regulatory": 4.5,
-                "security_architecture": 3.5,
-            })
+            mc.record_score(
+                4.0,
+                {
+                    "compliance_regulatory": 4.5,
+                    "security_architecture": 3.5,
+                },
+            )
 
     def test_record_rl_step(self) -> None:
         mc = MetricsCollector()
