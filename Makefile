@@ -16,25 +16,25 @@ dev: ## Install all dependencies (dev + test + docs + observability)
 # ── Testing ───────────────────────────────────────────────────────────────────
 
 test: ## Run all tests except nightly
-	$(UV) run pytest tests/ -m "not statistical and not slow" --tb=short -q
+	$(UV) run --extra test pytest tests/ -m "not statistical and not slow" --tb=short -q
 
 test-unit: ## Run unit tests only
-	$(UV) run pytest tests/unit/ -m "unit" --tb=short -q
+	$(UV) run --extra test pytest tests/unit/ -m "unit" --tb=short -q
 
 test-integration: ## Run integration tests
-	$(UV) run pytest tests/integration/ -m "integration" --tb=short -q
+	$(UV) run --extra test pytest tests/integration/ -m "integration" --tb=short -q
 
 test-behavioral: ## Run behavioral (CheckList) tests
-	$(UV) run pytest tests/behavioral/ -m "behavioral" --tb=short -q
+	$(UV) run --extra test pytest tests/behavioral/ -m "behavioral" --tb=short -q
 
 test-property: ## Run property-based (hypothesis) tests
-	$(UV) run pytest tests/property/ -m "property" --tb=short -q
+	$(UV) run --extra test pytest tests/property/ -m "property" --tb=short -q
 
 test-nightly: ## Run stochastic/statistical tests (nightly CI)
-	$(UV) run pytest tests/statistical/ -m "statistical" --tb=short -q
+	$(UV) run --extra test pytest tests/statistical/ -m "statistical" --tb=short -q
 
 test-cov: ## Run tests with coverage report
-	$(UV) run pytest tests/ -m "not statistical and not slow" --cov=reinforce_spec --cov-report=html --cov-report=term-missing
+	$(UV) run --extra test pytest tests/ -m "not statistical and not slow" --cov=reinforce_spec --cov-report=html --cov-report=term-missing
 
 # ── Code Quality ──────────────────────────────────────────────────────────────
 

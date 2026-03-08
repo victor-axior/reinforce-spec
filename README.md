@@ -283,9 +283,10 @@ Notes:
 make test           # Run tests
 make lint           # Run ruff linter
 make format         # Format code
-make typecheck      # Run mypy
-make check          # All checks (lint + typecheck + test)
-make serve-dev      # Start dev server with auto-reload
+make typecheck      # Run mypy + pyright
+make test-cov       # Run tests with coverage
+make serve          # Start dev server with auto-reload
+make serve-prod     # Start production server
 ```
 
 ## Deploy on AWS (ECS Fargate)
@@ -338,6 +339,9 @@ After deployment, smoke check:
 curl -sSf https://<alb-dns>/v1/health
 curl -sSf https://<alb-dns>/v1/health/ready
 ```
+
+If you deploy with `--hosted-zone-id` and `--api-domain`, the stack also outputs
+`CustomDomainUrl` and creates a Route 53 alias A-record to the ALB.
 
 ## Project Structure
 

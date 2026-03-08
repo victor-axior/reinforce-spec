@@ -5,12 +5,9 @@ Centralises dependency injection so routes stay thin and testable.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from fastapi import Request
 
-if TYPE_CHECKING:
-    from fastapi import Request
-
-    from reinforce_spec.client import ReinforceSpec
+from reinforce_spec.client import ReinforceSpec
 
 
 def get_client(request: Request) -> ReinforceSpec:

@@ -118,7 +118,10 @@ class Trainer:
         transitions, _indices, _weights = self._buffer.sample(batch_size)
 
         # Run PPO update
-        result = policy.train_on_batch(transitions, total_timesteps=steps)
+        if hasattr(policy, "train"):
+            result = policy.train(total_timesteps=steps)
+        else:
+            result = policy.train_on_batch(transitions, total_timesteps=steps)
 
         # Compute mean reward from sampled transitions
         mean_reward = sum(t.reward for t in transitions) / len(transitions)

@@ -12,11 +12,11 @@ from typing import TYPE_CHECKING, Any
 from fastapi import APIRouter, Depends
 
 from reinforce_spec.server.dependencies import get_client
+from reinforce_spec.server.schemas import TrainRequest
 from reinforce_spec.types import PolicyStatus
 
 if TYPE_CHECKING:
     from reinforce_spec.client import ReinforceSpec
-    from reinforce_spec.server.schemas import TrainRequest
 
 router = APIRouter(tags=["policy"])
 

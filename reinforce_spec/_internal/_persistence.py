@@ -15,7 +15,7 @@ first connection.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -216,15 +216,7 @@ class Storage:
 
         """
         now = utc_now()
-        expires = datetime(
-            now.year,
-            now.month,
-            now.day,
-            now.hour + ttl_hours,
-            now.minute,
-            now.second,
-            tzinfo=now.tzinfo,
-        )
+        expires = now + timedelta(hours=ttl_hours)
         await self.db.execute(
             "INSERT OR REPLACE INTO idempotency_keys (key, response_json, created_at, expires_at) "
             "VALUES (?, ?, ?, ?)",

@@ -11,12 +11,10 @@ from __future__ import annotations
 
 import enum
 import re
-from typing import TYPE_CHECKING, Any
+from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 # ── Enums ─────────────────────────────────────────────────────────────────────
 

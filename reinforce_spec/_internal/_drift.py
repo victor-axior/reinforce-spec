@@ -76,6 +76,10 @@ class DriftDetector:
 
         """
         self._reference = np.array(scores, dtype=np.float64)
+        if len(self._reference) == 0:
+            logger.info("drift_reference_set | n_samples=0 mean=nan std=nan")
+            return
+
         logger.info(
             "drift_reference_set | n_samples={n_samples} mean={mean} std={std}",
             n_samples=len(self._reference),
@@ -114,7 +118,7 @@ class DriftDetector:
             One result per test (PSI, KS). Empty if insufficient data.
 
         """
-        if self._reference is None or len(self._current) < 30:
+        if self._reference is None or len(self._reference) < 30 or len(self._current) < 30:
             return []
 
         current = np.array(self._current)
@@ -147,7 +151,7 @@ class DriftDetector:
     @property
     def has_sufficient_data(self) -> bool:
         """Return ``True`` when enough data exists for drift checks."""
-        return self._reference is not None and len(self._current) >= 30
+        return self._reference is not None and len(self._reference) >= 30 and len(self._current) >= 30
 
     def _compute_psi(
         self,
