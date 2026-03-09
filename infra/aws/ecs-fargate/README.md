@@ -36,6 +36,14 @@ aws secretsmanager create-secret \
 
 From repository root:
 
+If your root `.env` already has `RS_AWS_*` values, deploy with a single command:
+
+```bash
+scripts/aws/deploy_ecs_fargate.sh
+```
+
+Manual flag-based deployment is also supported:
+
 ```bash
 chmod +x scripts/aws/deploy_ecs_fargate.sh
 
@@ -68,6 +76,15 @@ The script will:
 2. Build and push the container image
 3. Deploy/update CloudFormation stack
 4. Print endpoint and resource outputs
+5. Run a health smoke check against the deployed ALB URL (when `curl` is available)
+
+During deploy, the script emits structured status lines in the format:
+
+```text
+RS_STATUS:{"stage":"deploy","status":"in_progress","message":"..."}
+```
+
+These can be filtered in CloudWatch Logs Insights for stage-by-stage operational visibility.
 
 When `--hosted-zone-id` and `--api-domain` are provided, CloudFormation also creates
 an alias A-record to the ALB and emits `CustomDomainUrl` in stack outputs.

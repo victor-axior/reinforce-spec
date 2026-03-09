@@ -1,23 +1,31 @@
+name: reinforce-spec
+
 services:
   api:
     build:
       context: .
       dockerfile: Dockerfile
+    env_file:
+      - .env
     ports:
       - "${RS_PORT:-8000}:8000"
     environment:
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - RS_LOG_FORMAT=${RS_LOG_FORMAT:-json}
       - RS_LOG_LEVEL=${RS_LOG_LEVEL:-info}
+      - RS_HOST=0.0.0.0
+      - RS_PORT=8000
+      - RS_WORKERS=${RS_WORKERS:-2}
       - RS_DATA_DIR=/app/data
     volumes:
       - app-data:/app/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health')"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health', timeout=3)\""]
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 20s
     deploy:
       resources:
         limits:

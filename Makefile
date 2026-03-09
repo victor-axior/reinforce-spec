@@ -1,4 +1,4 @@
-.PHONY: help install dev test test-unit test-integration test-behavioral test-property test-nightly lint format typecheck serve docker-build docker-up docker-down contract-test clean
+.PHONY: help install dev test test-unit test-integration test-behavioral test-property test-nightly lint format typecheck serve docker-build docker-up docker-down docker-smoke contract-test clean
 
 PYTHON := python
 UV := uv
@@ -66,13 +66,16 @@ serve-prod: ## Start production server
 # ── Docker ────────────────────────────────────────────────────────────────────
 
 docker-build: ## Build Docker image
-	docker build -t reinforce-spec:latest .
+	DOCKER_BUILDKIT=1 docker build --pull -t reinforce-spec:latest .
 
 docker-up: ## Start all services (app + redis + prometheus)
-	docker compose up -d
+	docker compose up -d --wait
 
 docker-down: ## Stop all services
 	docker compose down
+
+docker-smoke: ## Verify Dockerized API health endpoint
+	curl -sSf "http://localhost:$${RS_PORT:-8000}/v1/health" >/dev/null && echo "docker smoke check passed"
 
 # ── Database ──────────────────────────────────────────────────────────────────
 

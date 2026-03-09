@@ -1,0 +1,55 @@
+# Git metadata
+.git/
+.github/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python caches and virtualenvs
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Local data artifacts
+data/db/
+*.db
+*.db-shm
+*.db-wal
+mlruns/
+mlartifacts/
+
+# Local tooling/editor files
+.vscode/
+.idea/
+.DS_Store
+
+# Dev/test/docs not needed in image
+tests/
+examples/
+infra/
+axior-rc-0.9/
+openapi.yml
+pyrightconfig.json
+CONTRIBUTING.md
+SECURITY.md
+LICENSE
+
+# Docker and local orchestration files not needed by image build
+docker-compose.yml
+Makefile

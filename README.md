@@ -84,6 +84,30 @@ cp .env.example .env
 # Edit .env with your OpenRouter API key
 ```
 
+### Docker Deployment Flow
+
+Use the local deployment flow aligned with production health behavior:
+
+```bash
+make docker-build
+make docker-up
+make docker-smoke
+```
+
+To tear down services:
+
+```bash
+make docker-down
+```
+
+### ECS Fargate Deployment
+
+With `RS_AWS_*` values configured in `.env`:
+
+```bash
+scripts/aws/deploy_ecs_fargate.sh
+```
+
 ### Usage
 
 #### Python SDK

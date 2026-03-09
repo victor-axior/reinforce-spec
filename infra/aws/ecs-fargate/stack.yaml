@@ -298,6 +298,14 @@ Resources:
         - Name: api
           Image: !Ref ContainerImage
           Essential: true
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - !Sub "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:${ContainerPort}/v1/health', timeout=3)\" || exit 1"
+            Interval: 30
+            Timeout: 10
+            Retries: 3
+            StartPeriod: 30
           PortMappings:
             - ContainerPort: !Ref ContainerPort
               Protocol: tcp
