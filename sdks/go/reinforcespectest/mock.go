@@ -12,15 +12,15 @@ type MockOption func(*MockClient)
 // MockClient is a test double for reinforcespec.Client.
 // It implements reinforcespec.Selector and returns canned responses.
 type MockClient struct {
-	selectResponse   *reinforcespec.SelectionResponse
-	selectError      error
-	feedbackID       string
-	feedbackError    error
-	policyStatus     *reinforcespec.PolicyStatus
-	policyError      error
-	healthResponse   *reinforcespec.HealthResponse
-	healthError      error
-	closed           bool
+	selectResponse *reinforcespec.SelectionResponse
+	selectError    error
+	feedbackID     string
+	feedbackError  error
+	policyStatus   *reinforcespec.PolicyStatus
+	policyError    error
+	healthResponse *reinforcespec.HealthResponse
+	healthError    error
+	closed         bool
 
 	// SelectCalls records arguments to Select for assertions.
 	SelectCalls []SelectCall
