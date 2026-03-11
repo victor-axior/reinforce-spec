@@ -150,6 +150,10 @@ class ServerConfig(BaseSettings):
     api_key: str = Field(default="", description="Leave empty to disable auth in dev")
     cors_origins: list[str] = Field(default_factory=lambda: ["*"])
     max_concurrent_requests: int = Field(default=50, ge=1)
+    environment: str = Field(
+        default="production",
+        description="Deployment environment: development, staging, production",
+    )
 
 
 class StorageConfig(BaseSettings):
@@ -158,8 +162,11 @@ class StorageConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="RS_", extra="ignore")
 
     data_dir: str = Field(default="data", description="Root data directory")
-    db_name: str = Field(default="reinforce_spec.db", description="SQLite database filename")
-    database_url: str = Field(default="sqlite+aiosqlite:///data/db/reinforce_spec.db")
+    db_name: str = Field(default="reinforce_spec.db", description="Legacy SQLite database filename")
+    database_url: str = Field(
+        default="postgresql://postgres:postgres@localhost:5432/reinforce_spec",
+        description="PostgreSQL connection string",
+    )
     redis_url: str = Field(default="", description="Empty for in-memory fallback")
 
 
@@ -268,7 +275,7 @@ class AppConfig(BaseSettings):
             ),
             server=ServerConfig(api_key=""),
             storage=StorageConfig(
-                database_url="sqlite+aiosqlite:///tmp/reinforce_spec_test.db",
+                database_url="postgresql://postgres:postgres@localhost:5432/reinforce_spec_test",
                 redis_url="",
             ),
             observability=ObservabilityConfig(

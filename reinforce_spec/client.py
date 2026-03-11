@@ -144,7 +144,7 @@ class ReinforceSpec:
 
         # Persistence
         self._storage = Storage(
-            db_path=Path(cfg.storage.data_dir) / cfg.storage.db_name,
+            database_url=cfg.storage.database_url,
         )
         await self._storage.connect()
 

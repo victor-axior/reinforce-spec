@@ -1,155 +1,148 @@
-"""Persistence layer — async SQLite storage.
-
-Provides durable storage for:
-  - Spec generation requests and results
-  - Scoring records and dimension breakdowns
-  - RL training transitions
-  - Feedback signals
-  - Audit log entries
-  - Idempotency keys
-
-Uses ``aiosqlite`` for fully async I/O; schema is created lazily on
-first connection.
-"""
+"""Persistence layer — async PostgreSQL storage via SQLAlchemy ORM."""
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any
 
-import aiosqlite
 from loguru import logger
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import delete, select, update
+from sqlalchemy.dialects.postgresql import JSONB, insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from reinforce_spec._internal._utils import generate_request_id, utc_now
 
-# ── Schema ───────────────────────────────────────────────────────────────────
 
-SCHEMA_SQL = """\
--- Idempotency keys
-CREATE TABLE IF NOT EXISTS idempotency_keys (
-    key             TEXT PRIMARY KEY,
-    response_json   TEXT NOT NULL,
-    created_at      TEXT NOT NULL,
-    expires_at      TEXT NOT NULL
-);
-
--- Spec evaluation requests
-CREATE TABLE IF NOT EXISTS evaluation_requests (
-    request_id      TEXT PRIMARY KEY,
-    description     TEXT NOT NULL DEFAULT '',
-    customer_type   TEXT,
-    n_specs         INTEGER NOT NULL DEFAULT 5,
-    created_at      TEXT NOT NULL,
-    completed_at    TEXT,
-    status          TEXT NOT NULL DEFAULT 'pending'
-);
-
--- Individual candidate specs
-CREATE TABLE IF NOT EXISTS candidate_specs (
-    spec_id         TEXT PRIMARY KEY,
-    request_id      TEXT NOT NULL REFERENCES evaluation_requests(request_id),
-    index_pos       INTEGER NOT NULL,
-    spec_type       TEXT NOT NULL DEFAULT '',
-    spec_format     TEXT NOT NULL DEFAULT 'text',
-    content         TEXT NOT NULL,
-    source_model    TEXT,
-    composite_score REAL,
-    is_selected     INTEGER NOT NULL DEFAULT 0,
-    created_at      TEXT NOT NULL
-);
-
--- Dimension scores per candidate
-CREATE TABLE IF NOT EXISTS dimension_scores (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    spec_id         TEXT NOT NULL REFERENCES candidate_specs(spec_id),
-    dimension       TEXT NOT NULL,
-    score           REAL NOT NULL,
-    justification   TEXT,
-    judge_model     TEXT
-);
-
--- User feedback signals
-CREATE TABLE IF NOT EXISTS feedback (
-    feedback_id     TEXT PRIMARY KEY,
-    request_id      TEXT NOT NULL REFERENCES evaluation_requests(request_id),
-    spec_id         TEXT,
-    rating          REAL,
-    comment         TEXT,
-    created_at      TEXT NOT NULL
-);
-
--- RL training episodes
-CREATE TABLE IF NOT EXISTS rl_episodes (
-    episode_id      TEXT PRIMARY KEY,
-    request_id      TEXT REFERENCES evaluation_requests(request_id),
-    observation     TEXT NOT NULL,  -- JSON array
-    action          INTEGER NOT NULL,
-    reward          REAL NOT NULL,
-    policy_id       TEXT,
-    created_at      TEXT NOT NULL
-);
-
--- Audit log (immutable append-only)
-CREATE TABLE IF NOT EXISTS audit_log (
-    log_id          TEXT PRIMARY KEY,
-    event_type      TEXT NOT NULL,
-    actor           TEXT NOT NULL DEFAULT 'system',
-    payload         TEXT NOT NULL,  -- JSON
-    created_at      TEXT NOT NULL
-);
-
--- Indices
-CREATE INDEX IF NOT EXISTS idx_specs_request ON candidate_specs(request_id);
-CREATE INDEX IF NOT EXISTS idx_scores_spec ON dimension_scores(spec_id);
-CREATE INDEX IF NOT EXISTS idx_feedback_request ON feedback(request_id);
-CREATE INDEX IF NOT EXISTS idx_episodes_request ON rl_episodes(request_id);
-CREATE INDEX IF NOT EXISTS idx_audit_event ON audit_log(event_type, created_at);
-CREATE INDEX IF NOT EXISTS idx_idempotency_expires ON idempotency_keys(expires_at);
-"""
+class Base(DeclarativeBase):
+    """Base class for ORM models."""
 
 
-# ── Storage Backend ──────────────────────────────────────────────────────────
+class IdempotencyKey(Base):
+    __tablename__ = "idempotency_keys"
+
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    response_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class EvaluationRequest(Base):
+    __tablename__ = "evaluation_requests"
+
+    request_id: Mapped[str] = mapped_column(String, primary_key=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    customer_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    n_specs: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
+
+
+class CandidateSpec(Base):
+    __tablename__ = "candidate_specs"
+
+    spec_id: Mapped[str] = mapped_column(String, primary_key=True)
+    request_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("evaluation_requests.request_id"),
+        nullable=False,
+    )
+    index_pos: Mapped[int] = mapped_column(Integer, nullable=False)
+    spec_type: Mapped[str] = mapped_column(String, nullable=False, default="")
+    spec_format: Mapped[str] = mapped_column(String, nullable=False, default="text")
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    source_model: Mapped[str | None] = mapped_column(String, nullable=True)
+    composite_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    is_selected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class DimensionScore(Base):
+    __tablename__ = "dimension_scores"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    spec_id: Mapped[str] = mapped_column(String, ForeignKey("candidate_specs.spec_id"), nullable=False)
+    dimension: Mapped[str] = mapped_column(String, nullable=False)
+    score: Mapped[float] = mapped_column(Float, nullable=False)
+    justification: Mapped[str | None] = mapped_column(Text, nullable=True)
+    judge_model: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class Feedback(Base):
+    __tablename__ = "feedback"
+
+    feedback_id: Mapped[str] = mapped_column(String, primary_key=True)
+    request_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("evaluation_requests.request_id"),
+        nullable=False,
+    )
+    spec_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    rating: Mapped[float | None] = mapped_column(Float, nullable=True)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class RLEpisode(Base):
+    __tablename__ = "rl_episodes"
+
+    episode_id: Mapped[str] = mapped_column(String, primary_key=True)
+    request_id: Mapped[str | None] = mapped_column(String, ForeignKey("evaluation_requests.request_id"))
+    observation: Mapped[list[float]] = mapped_column(JSONB, nullable=False)
+    action: Mapped[int] = mapped_column(Integer, nullable=False)
+    reward: Mapped[float] = mapped_column(Float, nullable=False)
+    policy_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    log_id: Mapped[str] = mapped_column(String, primary_key=True)
+    event_type: Mapped[str] = mapped_column(String, nullable=False)
+    actor: Mapped[str] = mapped_column(String, nullable=False, default="system")
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+Index("idx_specs_request", CandidateSpec.request_id)
+Index("idx_scores_spec", DimensionScore.spec_id)
+Index("idx_feedback_request", Feedback.request_id)
+Index("idx_episodes_request", RLEpisode.request_id)
+Index("idx_audit_event", AuditLog.event_type, AuditLog.created_at)
+Index("idx_idempotency_expires", IdempotencyKey.expires_at)
 
 
 class Storage:
-    """Async SQLite storage backend.
+    """Async PostgreSQL storage backend using SQLAlchemy ORM."""
 
-    Usage::
+    def __init__(self, database_url: str) -> None:
+        self._database_url = self._normalize_url(database_url)
+        self._engine: AsyncEngine | None = None
+        self._sessionmaker: async_sessionmaker[AsyncSession] | None = None
 
-        async with Storage("data/reinforce.db") as store:
-            await store.save_request(...)
-
-    """
-
-    def __init__(self, db_path: str | Path = "data/reinforce_spec.db") -> None:
-        """Initialise the storage backend.
-
-        Parameters
-        ----------
-        db_path : str or Path
-            Filesystem path for the SQLite database file.
-
-        """
-        self._db_path = Path(db_path)
-        self._db: aiosqlite.Connection | None = None
+    @staticmethod
+    def _normalize_url(database_url: str) -> str:
+        if database_url.startswith("postgresql+asyncpg://"):
+            return database_url
+        if database_url.startswith("postgresql://"):
+            return database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return database_url
 
     async def connect(self) -> None:
-        """Open database connection and ensure schema."""
-        self._db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._db = await aiosqlite.connect(str(self._db_path))
-        await self._db.execute("PRAGMA journal_mode=WAL")
-        await self._db.execute("PRAGMA foreign_keys=ON")
-        await self._db.executescript(SCHEMA_SQL)
-        await self._db.commit()
-        logger.info("storage_connected | path={path}", path=str(self._db_path))
+        self._engine = create_async_engine(self._database_url, pool_pre_ping=True)
+        self._sessionmaker = async_sessionmaker(self._engine, expire_on_commit=False)
+        async with self._engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("storage_connected | database_url={database_url}", database_url=self._database_url)
 
     async def close(self) -> None:
-        """Close database connection."""
-        if self._db:
-            await self._db.close()
-            self._db = None
+        if self._engine:
+            await self._engine.dispose()
+            self._engine = None
+        self._sessionmaker = None
 
     async def __aenter__(self) -> Storage:
         await self.connect()
@@ -158,87 +151,61 @@ class Storage:
     async def __aexit__(self, *exc: Any) -> None:
         await self.close()
 
-    @property
-    def db(self) -> aiosqlite.Connection:
-        """Return the active database connection.
-
-        Returns
-        -------
-        aiosqlite.Connection
-            The underlying async SQLite connection.
-
-        Raises
-        ------
-        RuntimeError
-            If the storage is not connected.
-
-        """
-        if self._db is None:
+    def _require_sessionmaker(self) -> async_sessionmaker[AsyncSession]:
+        if self._sessionmaker is None:
             raise RuntimeError("Storage not connected. Call connect() first.")
-        return self._db
+        return self._sessionmaker
+
+    def _row_to_dict(self, row: Any) -> dict[str, Any]:
+        return {col.key: getattr(row, col.key) for col in row.__table__.columns}
 
     # ── Idempotency ──────────────────────────────────────────────────────
 
     async def get_idempotent_response(self, key: str) -> str | None:
-        """Return cached response for an idempotency key.
-
-        Parameters
-        ----------
-        key : str
-            The idempotency key to look up.
-
-        Returns
-        -------
-        str or None
-            Cached JSON response, or ``None`` if not found or expired.
-
-        """
-        async with self.db.execute(
-            "SELECT response_json FROM idempotency_keys " "WHERE key = ? AND expires_at > ?",
-            (key, utc_now().isoformat()),
-        ) as cursor:
-            row = await cursor.fetchone()
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            stmt = select(IdempotencyKey.response_json).where(
+                IdempotencyKey.key == key,
+                IdempotencyKey.expires_at > utc_now(),
+            )
+            result = await session.execute(stmt)
+            row = result.first()
             return row[0] if row else None
 
     async def set_idempotent_response(
         self, key: str, response_json: str, ttl_hours: int = 24
     ) -> None:
-        """Cache a response for the idempotency key.
-
-        Parameters
-        ----------
-        key : str
-            The idempotency key.
-        response_json : str
-            Serialised JSON response to cache.
-        ttl_hours : int
-            Time-to-live in hours before expiry.
-
-        """
         now = utc_now()
         expires = now + timedelta(hours=ttl_hours)
-        await self.db.execute(
-            "INSERT OR REPLACE INTO idempotency_keys (key, response_json, created_at, expires_at) "
-            "VALUES (?, ?, ?, ?)",
-            (key, response_json, now.isoformat(), expires.isoformat()),
+        stmt = (
+            pg_insert(IdempotencyKey)
+            .values(
+                key=key,
+                response_json=response_json,
+                created_at=now,
+                expires_at=expires,
+            )
+            .on_conflict_do_update(
+                index_elements=[IdempotencyKey.key],
+                set_={
+                    "response_json": response_json,
+                    "created_at": now,
+                    "expires_at": expires,
+                },
+            )
         )
-        await self.db.commit()
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            await session.execute(stmt)
+            await session.commit()
 
     async def cleanup_expired_idempotency_keys(self) -> int:
-        """Remove expired idempotency keys.
-
-        Returns
-        -------
-        int
-            Number of keys deleted.
-
-        """
-        cursor = await self.db.execute(
-            "DELETE FROM idempotency_keys WHERE expires_at <= ?",
-            (utc_now().isoformat(),),
-        )
-        await self.db.commit()
-        return cursor.rowcount
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            stmt = delete(IdempotencyKey).where(IdempotencyKey.expires_at <= utc_now())
+            result = await session.execute(stmt)
+            await session.commit()
+            return result.rowcount or 0
 
     # ── Generation Requests ──────────────────────────────────────────────
 
@@ -249,93 +216,50 @@ class Storage:
         description: str = "",
         customer_type: str | None = None,
     ) -> None:
-        """Persist a new evaluation request.
-
-        Parameters
-        ----------
-        request_id : str
-            Unique request identifier.
-        n_specs : int
-            Number of candidate specs to generate.
-        description : str
-            Free-text problem description.
-        customer_type : str or None
-            Optional customer segment label.
-
-        """
-        await self.db.execute(
-            "INSERT INTO evaluation_requests "
-            "(request_id, description, customer_type, n_specs, created_at, status) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (
-                request_id,
-                description,
-                customer_type,
-                n_specs,
-                utc_now().isoformat(),
-                "pending",
-            ),
-        )
-        await self.db.commit()
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            session.add(
+                EvaluationRequest(
+                    request_id=request_id,
+                    description=description,
+                    customer_type=customer_type,
+                    n_specs=n_specs,
+                    created_at=utc_now(),
+                    status="pending",
+                )
+            )
+            await session.commit()
 
     async def complete_request(self, request_id: str) -> None:
-        """Mark a request as completed.
-
-        Parameters
-        ----------
-        request_id : str
-            Unique request identifier.
-
-        """
-        await self.db.execute(
-            "UPDATE evaluation_requests SET status = 'completed', completed_at = ? "
-            "WHERE request_id = ?",
-            (utc_now().isoformat(), request_id),
-        )
-        await self.db.commit()
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            stmt = (
+                update(EvaluationRequest)
+                .where(EvaluationRequest.request_id == request_id)
+                .values(status="completed", completed_at=utc_now())
+            )
+            await session.execute(stmt)
+            await session.commit()
 
     async def fail_request(self, request_id: str, error: str) -> None:
-        """Mark a request as failed and log the error.
-
-        Parameters
-        ----------
-        request_id : str
-            Unique request identifier.
-        error : str
-            Error description to record in the audit log.
-
-        """
-        await self.db.execute(
-            "UPDATE evaluation_requests SET status = 'failed', completed_at = ? "
-            "WHERE request_id = ?",
-            (utc_now().isoformat(), request_id),
-        )
-        await self.db.commit()
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            stmt = (
+                update(EvaluationRequest)
+                .where(EvaluationRequest.request_id == request_id)
+                .values(status="failed", completed_at=utc_now())
+            )
+            await session.execute(stmt)
+            await session.commit()
         await self.append_audit_log("request_failed", {"request_id": request_id, "error": error})
 
     async def get_request(self, request_id: str) -> dict[str, Any] | None:
-        """Retrieve a request by its identifier.
-
-        Parameters
-        ----------
-        request_id : str
-            Unique request identifier.
-
-        Returns
-        -------
-        dict[str, Any] or None
-            Row data as a dictionary, or ``None`` if not found.
-
-        """
-        async with self.db.execute(
-            "SELECT * FROM evaluation_requests WHERE request_id = ?",
-            (request_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
-            if not row:
-                return None
-            cols = [d[0] for d in cursor.description]
-            return dict(zip(cols, row))
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            stmt = select(EvaluationRequest).where(EvaluationRequest.request_id == request_id)
+            result = await session.execute(stmt)
+            row = result.scalar_one_or_none()
+            return self._row_to_dict(row) if row else None
 
     # ── Candidate Specs ──────────────────────────────────────────────────
 
@@ -351,95 +275,53 @@ class Storage:
         composite_score: float | None = None,
         is_selected: bool = False,
     ) -> None:
-        """Persist a candidate spec.
-
-        Parameters
-        ----------
-        request_id : str
-            Parent request identifier.
-        spec_id : str
-            Unique candidate identifier.
-        index_pos : int
-            Zero-based position in the candidate list.
-        spec_type : str
-            Category label for the spec.
-        spec_format : str
-            Content format (``'text'``, ``'json'``, etc.).
-        content : str
-            Raw spec content.
-        source_model : str or None
-            LLM model that generated the spec.
-        composite_score : float or None
-            Aggregate score from the scoring pipeline.
-        is_selected : bool
-            Whether this candidate was ultimately selected.
-
-        """
-        await self.db.execute(
-            "INSERT INTO candidate_specs "
-            "(spec_id, request_id, index_pos, spec_type, spec_format, content, "
-            "source_model, composite_score, is_selected, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                spec_id,
-                request_id,
-                index_pos,
-                spec_type,
-                spec_format,
-                content,
-                source_model,
-                composite_score,
-                1 if is_selected else 0,
-                utc_now().isoformat(),
-            ),
-        )
-        await self.db.commit()
-
-    async def save_dimension_scores(
-        self,
-        spec_id: str,
-        scores: list[dict[str, Any]],
-    ) -> None:
-        """Save dimension scores for a candidate spec.
-
-        Parameters
-        ----------
-        spec_id : str
-            Candidate identifier the scores belong to.
-        scores : list[dict[str, Any]]
-            Each dict must contain ``'dimension'`` and ``'score'``; may also
-            include ``'justification'`` and ``'judge_model'``.
-
-        """
-        for s in scores:
-            await self.db.execute(
-                "INSERT INTO dimension_scores (spec_id, dimension, score, justification, judge_model) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (spec_id, s["dimension"], s["score"], s.get("justification"), s.get("judge_model")),
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            session.add(
+                CandidateSpec(
+                    spec_id=spec_id,
+                    request_id=request_id,
+                    index_pos=index_pos,
+                    spec_type=spec_type,
+                    spec_format=spec_format,
+                    content=content,
+                    source_model=source_model,
+                    composite_score=composite_score,
+                    is_selected=is_selected,
+                    created_at=utc_now(),
+                )
             )
-        await self.db.commit()
+            await session.commit()
+
+    async def save_dimension_scores(self, spec_id: str, scores: list[dict[str, Any]]) -> None:
+        if not scores:
+            return
+        rows = [
+            {
+                "spec_id": spec_id,
+                "dimension": s["dimension"],
+                "score": s["score"],
+                "justification": s.get("justification"),
+                "judge_model": s.get("judge_model"),
+            }
+            for s in scores
+        ]
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            await session.execute(pg_insert(DimensionScore), rows)
+            await session.commit()
 
     async def get_candidates_for_request(self, request_id: str) -> list[dict[str, Any]]:
-        """Retrieve all candidates for a request, ordered by score.
-
-        Parameters
-        ----------
-        request_id : str
-            Parent request identifier.
-
-        Returns
-        -------
-        list[dict[str, Any]]
-            Candidate rows sorted by composite score descending.
-
-        """
-        async with self.db.execute(
-            "SELECT * FROM candidate_specs WHERE request_id = ? ORDER BY composite_score DESC",
-            (request_id,),
-        ) as cursor:
-            rows = await cursor.fetchall()
-            cols = [d[0] for d in cursor.description]
-            return [dict(zip(cols, row)) for row in rows]
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            stmt = (
+                select(CandidateSpec)
+                .where(CandidateSpec.request_id == request_id)
+                .order_by(CandidateSpec.composite_score.desc())
+            )
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+            return [self._row_to_dict(row) for row in rows]
 
     # ── Feedback ─────────────────────────────────────────────────────────
 
@@ -450,55 +332,33 @@ class Storage:
         comment: str | None = None,
         spec_id: str | None = None,
     ) -> str:
-        """Record user feedback for a request.
-
-        Parameters
-        ----------
-        request_id : str
-            Parent request identifier.
-        rating : float or None
-            Numeric rating (e.g. 1–5).
-        comment : str or None
-            Free-text comment.
-        spec_id : str or None
-            Specific candidate the feedback targets.
-
-        Returns
-        -------
-        str
-            The generated feedback identifier.
-
-        """
         feedback_id = generate_request_id()
-        await self.db.execute(
-            "INSERT INTO feedback (feedback_id, request_id, spec_id, rating, comment, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (feedback_id, request_id, spec_id, rating, comment, utc_now().isoformat()),
-        )
-        await self.db.commit()
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            session.add(
+                Feedback(
+                    feedback_id=feedback_id,
+                    request_id=request_id,
+                    spec_id=spec_id,
+                    rating=rating,
+                    comment=comment,
+                    created_at=utc_now(),
+                )
+            )
+            await session.commit()
         return feedback_id
 
     async def get_feedback_for_request(self, request_id: str) -> list[dict[str, Any]]:
-        """Retrieve all feedback for a request.
-
-        Parameters
-        ----------
-        request_id : str
-            Parent request identifier.
-
-        Returns
-        -------
-        list[dict[str, Any]]
-            Feedback rows sorted by creation time descending.
-
-        """
-        async with self.db.execute(
-            "SELECT * FROM feedback WHERE request_id = ? ORDER BY created_at DESC",
-            (request_id,),
-        ) as cursor:
-            rows = await cursor.fetchall()
-            cols = [d[0] for d in cursor.description]
-            return [dict(zip(cols, row)) for row in rows]
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            stmt = (
+                select(Feedback)
+                .where(Feedback.request_id == request_id)
+                .order_by(Feedback.created_at.desc())
+            )
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+            return [self._row_to_dict(row) for row in rows]
 
     # ── RL Episodes ──────────────────────────────────────────────────────
 
@@ -510,66 +370,30 @@ class Storage:
         reward: float,
         policy_id: str | None = None,
     ) -> str:
-        """Record an RL training episode.
-
-        Parameters
-        ----------
-        request_id : str or None
-            Associated request identifier, if any.
-        observation : list[float]
-            Environment observation vector.
-        action : int
-            Action taken by the policy.
-        reward : float
-            Reward signal received.
-        policy_id : str or None
-            Policy that generated the action.
-
-        Returns
-        -------
-        str
-            The generated episode identifier.
-
-        """
         episode_id = generate_request_id()
-        await self.db.execute(
-            "INSERT INTO rl_episodes "
-            "(episode_id, request_id, observation, action, reward, policy_id, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (
-                episode_id,
-                request_id,
-                json.dumps(observation),
-                action,
-                reward,
-                policy_id,
-                utc_now().isoformat(),
-            ),
-        )
-        await self.db.commit()
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            session.add(
+                RLEpisode(
+                    episode_id=episode_id,
+                    request_id=request_id,
+                    observation=observation,
+                    action=action,
+                    reward=reward,
+                    policy_id=policy_id,
+                    created_at=utc_now(),
+                )
+            )
+            await session.commit()
         return episode_id
 
     async def get_recent_episodes(self, limit: int = 1000) -> list[dict[str, Any]]:
-        """Retrieve the most recent RL episodes.
-
-        Parameters
-        ----------
-        limit : int
-            Maximum number of episodes to return.
-
-        Returns
-        -------
-        list[dict[str, Any]]
-            Episode rows sorted by creation time descending.
-
-        """
-        async with self.db.execute(
-            "SELECT * FROM rl_episodes ORDER BY created_at DESC LIMIT ?",
-            (limit,),
-        ) as cursor:
-            rows = await cursor.fetchall()
-            cols = [d[0] for d in cursor.description]
-            return [dict(zip(cols, row)) for row in rows]
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            stmt = select(RLEpisode).order_by(RLEpisode.created_at.desc()).limit(limit)
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+            return [self._row_to_dict(row) for row in rows]
 
     # ── Audit Log ────────────────────────────────────────────────────────
 
@@ -579,57 +403,44 @@ class Storage:
         payload: dict[str, Any],
         actor: str = "system",
     ) -> None:
-        """Append an entry to the immutable audit log.
-
-        Parameters
-        ----------
-        event_type : str
-            Category of the event (e.g. ``'request_failed'``).
-        payload : dict[str, Any]
-            Arbitrary JSON-serialisable event data.
-        actor : str
-            Identity of the entity that triggered the event.
-
-        """
         log_id = generate_request_id()
-        await self.db.execute(
-            "INSERT INTO audit_log (log_id, event_type, actor, payload, created_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (log_id, event_type, actor, json.dumps(payload), utc_now().isoformat()),
-        )
-        await self.db.commit()
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            session.add(
+                AuditLog(
+                    log_id=log_id,
+                    event_type=event_type,
+                    actor=actor,
+                    payload=payload,
+                    created_at=utc_now(),
+                )
+            )
+            await session.commit()
 
     async def get_audit_log(
         self,
         event_type: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
-        """Query the audit log.
-
-        Parameters
-        ----------
-        event_type : str or None
-            Filter by event type; ``None`` returns all types.
-        limit : int
-            Maximum number of entries to return.
-
-        Returns
-        -------
-        list[dict[str, Any]]
-            Audit log rows sorted by creation time descending.
-
-        """
-        if event_type:
-            query = "SELECT * FROM audit_log WHERE event_type = ? ORDER BY created_at DESC LIMIT ?"
-            params: tuple[Any, ...] = (event_type, limit)
-        else:
-            query = "SELECT * FROM audit_log ORDER BY created_at DESC LIMIT ?"
-            params = (limit,)
-
-        async with self.db.execute(query, params) as cursor:
-            rows = await cursor.fetchall()
-            cols = [d[0] for d in cursor.description]
-            return [dict(zip(cols, row)) for row in rows]
+        sessionmaker = self._require_sessionmaker()
+        async with sessionmaker() as session:
+            stmt = select(AuditLog)
+            if event_type:
+                stmt = stmt.where(AuditLog.event_type == event_type)
+            stmt = stmt.order_by(AuditLog.created_at.desc()).limit(limit)
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+            return [self._row_to_dict(row) for row in rows]
 
 
-__all__ = ["Storage"]
+__all__ = [
+    "AuditLog",
+    "Base",
+    "CandidateSpec",
+    "DimensionScore",
+    "EvaluationRequest",
+    "Feedback",
+    "IdempotencyKey",
+    "RLEpisode",
+    "Storage",
+]

@@ -35,7 +35,9 @@ dependencies = [
     "numpy>=1.26.0",
     "loguru>=0.7.0",
     "tenacity>=8.2.0",
-    "aiosqlite>=0.20.0",
+    "asyncpg>=0.29.0",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "python-dotenv>=1.0.1",
     "alembic>=1.13.0",
     "slowapi>=0.1.9",
     "python-ulid>=2.2.0",
@@ -150,12 +152,12 @@ known-first-party = ["reinforce_spec"]
 [tool.mypy]
 python_version = "3.11"
 strict = false
-warn_return_any = false
+warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-check_untyped_defs = false
-no_implicit_optional = false
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = false
 show_error_codes = true
@@ -165,17 +167,6 @@ ignore_missing_imports = true
 disable_error_code = [
     "import-not-found",
     "import-untyped",
-    "no-any-return",
-    "unused-ignore",
-    "call-arg",
-    "arg-type",
-    "attr-defined",
-    "type-arg",
-    "var-annotated",
-    "union-attr",
-    "misc",
-    "assignment",
-    "method-assign",
 ]
 
 [[tool.mypy.overrides]]
@@ -190,6 +181,15 @@ module = [
     "alembic.*",
 ]
 ignore_missing_imports = true
+
+# Gradual strictness for legacy modules
+[[tool.mypy.overrides]]
+module = [
+    "reinforce_spec.rl.*",
+    "reinforce_spec.scoring.*",
+]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
 
 # ── Pytest ────────────────────────────────────────────────────────────────────
 
