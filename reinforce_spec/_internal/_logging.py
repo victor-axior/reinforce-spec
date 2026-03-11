@@ -27,9 +27,10 @@ class _InterceptHandler(logging.Handler):
             level = record.levelno  # type: ignore[assignment]
 
         # Find the caller from where the log originated
-        frame, depth = logging.currentframe(), 2
+        frame = logging.currentframe()
+        depth = 2
         while frame and frame.f_code.co_filename == logging.__file__:
-            frame = frame.f_back
+            frame = frame.f_back  # type: ignore[assignment]
             depth += 1
 
         logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())

@@ -66,3 +66,8 @@ mlartifacts/
 # Logs
 *.log
 logs/
+logs*.json
+stack_status.json
+
+# Debug scripts with credentials
+check_db.py

@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 # ── Circuit Breaker ───────────────────────────────────────────────────────────
 
 
-class CircuitState(str, enum.Enum):
+class CircuitState(enum.StrEnum):
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
@@ -463,7 +463,7 @@ class OpenRouterClient:
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        return list(results)  # type: ignore[return-value]
+        return list(results)  # type: ignore[arg-type]
 
     async def close(self) -> None:
         """Close the underlying HTTP client."""

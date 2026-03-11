@@ -81,7 +81,7 @@ class TestImportanceSampling:
         behavior_probs = [0.5] * 20
 
         result = importance_sampling(transitions, policy, behavior_probs)
-        low, high = result.confidence_interval
+        _low, _high = result.confidence_interval
         assert True  # CI may not contain mean for IS
 
 

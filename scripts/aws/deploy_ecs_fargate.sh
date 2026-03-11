@@ -28,6 +28,7 @@ Required:
   --openrouter-secret-arn <secretsmanager-secret-arn>
 
 Optional:
+  --database-secret-arn <secretsmanager-secret-arn>  (RDS connection string secret)
   --hosted-zone-id <route53-zone-id>      (optional, for custom DNS)
   --api-domain <fqdn>                      (optional, e.g. api.example.com)
   --stack-name <name>                 (default: reinforce-spec-api)
@@ -75,6 +76,7 @@ PUBLIC_SUBNETS="${RS_AWS_PUBLIC_SUBNETS:-}"
 PRIVATE_SUBNETS="${RS_AWS_PRIVATE_SUBNETS:-}"
 CERTIFICATE_ARN="${RS_AWS_CERTIFICATE_ARN:-}"
 OPENROUTER_SECRET_ARN="${RS_AWS_OPENROUTER_SECRET_ARN:-}"
+DATABASE_SECRET_ARN="${RS_AWS_DATABASE_SECRET_ARN:-}"
 HOSTED_ZONE_ID="${RS_AWS_HOSTED_ZONE_ID:-}"
 API_DOMAIN_NAME="${RS_AWS_API_DOMAIN_NAME:-}"
 
@@ -90,6 +92,8 @@ while [[ $# -gt 0 ]]; do
       CERTIFICATE_ARN="$2"; shift 2 ;;
     --openrouter-secret-arn)
       OPENROUTER_SECRET_ARN="$2"; shift 2 ;;
+    --database-secret-arn)
+      DATABASE_SECRET_ARN="$2"; shift 2 ;;
     --hosted-zone-id)
       HOSTED_ZONE_ID="$2"; shift 2 ;;
     --api-domain)
@@ -237,6 +241,7 @@ aws cloudformation deploy \
     HostedZoneId="$HOSTED_ZONE_ID" \
     ApiDomainName="$API_DOMAIN_NAME" \
     OpenRouterApiKeySecretArn="$OPENROUTER_SECRET_ARN" \
+    DatabaseSecretArn="$DATABASE_SECRET_ARN" \
     DesiredCount="$DESIRED_COUNT" \
     MinTaskCount="$MIN_COUNT" \
     MaxTaskCount="$MAX_COUNT" \

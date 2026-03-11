@@ -5,9 +5,12 @@ Centralises dependency injection so routes stay thin and testable.
 
 from __future__ import annotations
 
-from fastapi import Request
+from typing import TYPE_CHECKING
 
-from reinforce_spec.client import ReinforceSpec
+if TYPE_CHECKING:
+    from fastapi import Request
+
+    from reinforce_spec.client import ReinforceSpec
 
 
 def get_client(request: Request) -> ReinforceSpec:
@@ -15,4 +18,5 @@ def get_client(request: Request) -> ReinforceSpec:
 
     This is injected via ``Depends(get_client)`` in route handlers.
     """
-    return request.app.state.client
+    client: ReinforceSpec = request.app.state.client
+    return client

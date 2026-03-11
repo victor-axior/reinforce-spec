@@ -22,6 +22,20 @@ fi
 mkdir -p "$DATA_POLICY_DIR" "/app/data/db"
 emit_status "startup" "in_progress" "ensured data directories"
 
+# Wait for EFS mount to be ready (retry logic for Fargate cold starts)
+for i in 1 2 3 4 5; do
+  if [ -w "$DATA_POLICY_DIR" ]; then
+    break
+  fi
+  if [ "$i" -eq 5 ]; then
+    emit_status "startup" "failed" "EFS mount not writable after 5 attempts"
+    echo "Error: $DATA_POLICY_DIR is not writable (EFS mount issue?)" >&2
+    exit 1
+  fi
+  echo "Waiting for EFS mount to be writable... (attempt $i/5)"
+  sleep 5
+done
+
 if [ -f "$BOOTSTRAP_POLICY_DIR/registry.json" ] && [ ! -f "$DATA_POLICY_DIR/registry.json" ]; then
   cp -R "$BOOTSTRAP_POLICY_DIR/." "$DATA_POLICY_DIR/"
   emit_status "startup" "in_progress" "seeded bootstrap policy registry"

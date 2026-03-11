@@ -127,6 +127,7 @@ class IdempotencyStore:
     async def _check_redis(self, key: str) -> dict[str, Any] | None:
         import json
 
+        assert self._redis is not None  # Guarded by caller
         raw = await self._redis.get(f"idem:{key}")
         if raw is None:
             return None
@@ -135,4 +136,5 @@ class IdempotencyStore:
     async def _save_redis(self, key: str, response: dict[str, Any]) -> None:
         import json
 
+        assert self._redis is not None  # Guarded by caller
         await self._redis.setex(f"idem:{key}", self._ttl, json.dumps(response))

@@ -1,0 +1,316 @@
+name: SDK Release
+
+on:
+  push:
+    tags:
+      - 'sdk-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+      publish_python:
+        description: 'Publish Python SDK'
+        required: false
+        type: boolean
+        default: true
+      publish_typescript:
+        description: 'Publish TypeScript SDK'
+        required: false
+        type: boolean
+        default: true
+      publish_go:
+        description: 'Publish Go SDK'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  CODEARTIFACT_DOMAIN: reinforce-spec
+  PYTHON_REPO: python-packages
+  NPM_REPO: npm-packages
+
+jobs:
+  # ==========================================================================
+  # Validate and Test
+  # ==========================================================================
+  test-python:
+    name: Test Python SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/python
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run linting
+        run: |
+          ruff check src/ tests/
+          mypy src/
+
+      - name: Run tests
+        run: pytest --cov=reinforce_spec_sdk --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          flags: python-sdk
+
+  test-typescript:
+    name: Test TypeScript SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/typescript
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: sdks/typescript/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run type checking
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test -- --coverage
+
+      - name: Build
+        run: npm run build
+
+  test-go:
+    name: Test Go SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/go
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache-dependency-path: sdks/go/go.sum
+
+      - name: Run linting
+        uses: golangci/golangci-lint-action@v4
+        with:
+          working-directory: sdks/go
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: sdks/go/coverage.out
+          flags: go-sdk
+
+  # ==========================================================================
+  # Publish SDKs
+  # ==========================================================================
+  publish-python:
+    name: Publish Python SDK
+    needs: [test-python, test-typescript, test-go]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event.inputs.publish_python == 'true' }}
+    defaults:
+      run:
+        working-directory: sdks/python
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PUBLISH_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to CodeArtifact
+        run: |
+          aws codeartifact login --tool pip --domain ${{ env.CODEARTIFACT_DOMAIN }} --repository ${{ env.PYTHON_REPO }}
+          aws codeartifact login --tool twine --domain ${{ env.CODEARTIFACT_DOMAIN }} --repository ${{ env.PYTHON_REPO }}
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Update version
+        if: ${{ github.event.inputs.version }}
+        run: |
+          VERSION=${{ github.event.inputs.version }}
+          sed -i "s/version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+          sed -i "s/__version__ = \".*\"/__version__ = \"$VERSION\"/" src/reinforce_spec_sdk/__init__.py
+
+      - name: Build package
+        run: python -m build
+
+      - name: Publish to CodeArtifact
+        run: |
+          CODEARTIFACT_REPO_URL=$(aws codeartifact get-repository-endpoint \
+            --domain ${{ env.CODEARTIFACT_DOMAIN }} \
+            --repository ${{ env.PYTHON_REPO }} \
+            --format pypi \
+            --query repositoryEndpoint \
+            --output text)
+          twine upload --repository-url $CODEARTIFACT_REPO_URL dist/*
+
+  publish-typescript:
+    name: Publish TypeScript SDK
+    needs: [test-python, test-typescript, test-go]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event.inputs.publish_typescript == 'true' }}
+    defaults:
+      run:
+        working-directory: sdks/typescript
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PUBLISH_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to CodeArtifact
+        run: |
+          aws codeartifact login --tool npm --domain ${{ env.CODEARTIFACT_DOMAIN }} --repository ${{ env.NPM_REPO }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version
+        if: ${{ github.event.inputs.version }}
+        run: npm version ${{ github.event.inputs.version }} --no-git-tag-version
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to CodeArtifact
+        run: npm publish
+
+  publish-go:
+    name: Tag Go SDK Release
+    needs: [test-python, test-typescript, test-go]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event.inputs.publish_go == 'true' }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event.inputs.version }}" != "" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Extract version from tag (sdk-v1.0.0 -> 1.0.0)
+            VERSION=${GITHUB_REF#refs/tags/sdk-v}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Go module tag
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          
+          # Tag the Go SDK directory
+          git tag "sdks/go/v$VERSION" -m "Go SDK v$VERSION"
+          git push origin "sdks/go/v$VERSION"
+
+  # ==========================================================================
+  # Create Release
+  # ==========================================================================
+  create-release:
+    name: Create GitHub Release
+    needs: [publish-python, publish-typescript, publish-go]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event.inputs.version }}" != "" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            VERSION=${GITHUB_REF#refs/tags/sdk-v}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: sdk-v${{ steps.version.outputs.version }}
+          name: SDK v${{ steps.version.outputs.version }}
+          body: |
+            ## ReinforceSpec SDK v${{ steps.version.outputs.version }}
+            
+            ### Installation
+            
+            **Python:**
+            ```bash
+            aws codeartifact login --tool pip --domain reinforce-spec --repository python-packages
+            pip install reinforce-spec-sdk==${{ steps.version.outputs.version }}
+            ```
+            
+            **TypeScript/JavaScript:**
+            ```bash
+            aws codeartifact login --tool npm --domain reinforce-spec --repository npm-packages
+            npm install @reinforce-spec/sdk@${{ steps.version.outputs.version }}
+            ```
+            
+            **Go:**
+            ```bash
+            go get github.com/reinforce-spec/sdk-go@v${{ steps.version.outputs.version }}
+            ```
+            
+            ### Changelog
+            
+            See [CHANGELOG.md](https://docs.reinforce-spec.dev/resources/changelog) for details.
+          draft: false
+          prerelease: false
+          generate_release_notes: true

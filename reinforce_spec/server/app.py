@@ -28,7 +28,11 @@ from reinforce_spec._exceptions import (
 )
 from reinforce_spec._internal._config import AppConfig
 from reinforce_spec.client import ReinforceSpec
-from reinforce_spec.server.middleware import BackpressureMiddleware, RequestLoggingMiddleware
+from reinforce_spec.server.middleware import (
+    BackpressureMiddleware,
+    RequestLoggingMiddleware,
+    SecurityHeadersMiddleware,
+)
 from reinforce_spec.server.openapi import custom_openapi
 from reinforce_spec.server.routes import router
 from reinforce_spec.version import VERSION
@@ -98,6 +102,12 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.include_router(router)
 
     # ── Middleware (applied in reverse order) ─────────────────────────
+    # Security headers (outermost - applied last, runs first)
+    app.add_middleware(
+        SecurityHeadersMiddleware,
+        enable_hsts=config.server.environment != "development",
+        csp_report_only=config.server.environment == "development",
+    )
     app.add_middleware(BackpressureMiddleware, max_concurrent=config.server.max_concurrent_requests)
     app.add_middleware(RequestLoggingMiddleware)
 

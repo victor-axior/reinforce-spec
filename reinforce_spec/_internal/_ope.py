@@ -320,7 +320,7 @@ def _bootstrap_ci(
 
 __all__ = [
     "OPEResult",
+    "fitted_q_evaluation",
     "importance_sampling",
     "weighted_importance_sampling",
-    "fitted_q_evaluation",
 ]

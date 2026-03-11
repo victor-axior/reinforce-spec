@@ -160,7 +160,7 @@ class TestOpenRouterClientFallback:
         metrics = LLMCallMetrics(model="fallback-1")
         client.complete = AsyncMock(return_value=("result", metrics))
 
-        content, m = await client.complete_with_fallback(
+        content, _m = await client.complete_with_fallback(
             messages=[{"role": "user", "content": "hi"}],
         )
         assert content == "result"
@@ -184,7 +184,7 @@ class TestOpenRouterClientFallback:
 
         client.complete = mock_complete
 
-        content, m = await client.complete_with_fallback(
+        content, _m = await client.complete_with_fallback(
             messages=[{"role": "user", "content": "hi"}],
         )
         assert content == "ok"

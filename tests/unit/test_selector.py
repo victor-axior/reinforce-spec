@@ -74,7 +74,7 @@ class TestSelectByScoring:
     def test_equal_scores_picks_one(self) -> None:
         selector = HybridSelector()
         candidates = _make_candidates(2, scores=[3.0, 3.0])
-        selected, meta = selector.select(candidates, SelectionMethod.SCORING_ONLY)
+        selected, _meta = selector.select(candidates, SelectionMethod.SCORING_ONLY)
         assert selected in candidates
 
 
@@ -111,7 +111,7 @@ class TestSelectByRL:
         )
         selector = HybridSelector(policy=policy)
         candidates = _make_candidates(3)
-        selected, meta = selector.select(candidates, SelectionMethod.RL_ONLY)
+        selected, _meta = selector.select(candidates, SelectionMethod.RL_ONLY)
         assert selected.index == 7 % 3  # 1
 
 
@@ -129,7 +129,7 @@ class TestSelectHybrid:
             confidence_threshold=0.3,
         )
         candidates = _make_candidates(3, scores=[3.0, 2.0, 1.0])
-        selected, meta = selector.select(candidates, SelectionMethod.HYBRID)
+        _selected, meta = selector.select(candidates, SelectionMethod.HYBRID)
         assert meta["method"] == SelectionMethod.HYBRID.value
         assert "scoring_weight" in meta
         assert "rl_weight" in meta
@@ -144,7 +144,7 @@ class TestSelectHybrid:
             confidence_threshold=0.5,
         )
         candidates = _make_candidates(3, scores=[2.0, 4.0, 1.0])
-        selected, meta = selector.select(candidates, SelectionMethod.HYBRID)
+        _selected, meta = selector.select(candidates, SelectionMethod.HYBRID)
         # RL weight should be reduced: 0.6 * (0.1 / 0.5) = 0.12
         assert meta["rl_weight"] < 0.6
 

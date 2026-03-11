@@ -46,6 +46,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --python /opt/venv/bin/python -r requirements.txt
 
+# Ensure runtime DB stack deps exist even before lockfile refresh.
+RUN --mount=type=cache,target=/root/.cache/uv \
+        uv pip install --python /opt/venv/bin/python \
+            "sqlalchemy[asyncio]>=2.0.30" \
+            "asyncpg>=0.29.0" \
+            "python-dotenv>=1.0.1"
+
 # ⑤ Copy source, install just the project (deps cached → fast).
 COPY reinforce_spec/ reinforce_spec/
 RUN uv pip install --python /opt/venv/bin/python --no-deps .
@@ -77,6 +84,8 @@ COPY --chown=appuser:appuser scripts/docker_entrypoint.sh /app/docker_entrypoint
 
 # Create data directory
 RUN mkdir -p /app/data/policies /app/data/db && \
+    chown -R appuser:appuser /app/data && \
+    sed -i 's/\r$//' /app/docker_entrypoint.sh && \
     chmod 755 /app/docker_entrypoint.sh
 
 # Switch to non-root user

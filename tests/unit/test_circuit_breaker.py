@@ -186,7 +186,7 @@ class TestOpenRouterClient:
         mock_response = self._make_mock_response("fallback ok")
         client._client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        content, metrics = await client.complete_with_fallback(
+        content, _metrics = await client.complete_with_fallback(
             [{"role": "user", "content": "test"}],
         )
         assert content == "fallback ok"

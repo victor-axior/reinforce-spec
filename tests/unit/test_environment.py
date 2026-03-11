@@ -173,7 +173,7 @@ class TestSpecSelectionEnv:
         env.reset()
 
         # Action=10 → 10 % 3 = 1
-        obs, reward, terminated, truncated, info = env.step(10)
+        _obs, _reward, _terminated, _truncated, info = env.step(10)
         assert info["action"] == 10 % 3
 
     def test_step_with_feedback_signal(self) -> None:
@@ -186,7 +186,7 @@ class TestSpecSelectionEnv:
         env.reset()
 
         env.set_feedback_signal(0.5)
-        obs, reward, terminated, truncated, info = env.step(0)
+        _obs, reward, _terminated, _truncated, _info = env.step(0)
         # base_reward=3.0 + feedback(0.5 * 2.0) = 4.0
         assert abs(reward - 4.0) < 1e-5
 

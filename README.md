@@ -37,7 +37,7 @@ ReinforceSpec scores and selects the best enterprise software specification from
     │              OpenRouter (LLM API)            │
     │         + Gym Environment + PPO Policy       │
     │         + Prioritized Replay Buffer          │
-    │         + SQLite Persistence                 │
+    │         + PostgreSQL Persistence             │
     └──────────────────────────────────────────────┘
 ```
 
@@ -81,7 +81,7 @@ pip install -e ".[dev]"
 
 ```bash
 cp .env.example .env
-# Edit .env with your OpenRouter API key
+# Edit .env with your OpenRouter API key and RS_DATABASE_URL
 ```
 
 ### Docker Deployment Flow
@@ -100,6 +100,21 @@ To tear down services:
 make docker-down
 ```
 
+### PostgreSQL (Local)
+
+Docker Compose starts a local Postgres instance and the API uses it via
+`RS_DATABASE_URL`.
+
+### SQLite → PostgreSQL Migration
+
+Use the migration script to move existing SQLite data into PostgreSQL:
+
+```bash
+python scripts/migrate_sqlite_to_postgres.py \
+  --sqlite-path data/reinforce_spec.db \
+  --postgres-url postgresql://postgres:postgres@localhost:5432/reinforce_spec
+```
+
 ### ECS Fargate Deployment
 
 With `RS_AWS_*` values configured in `.env`:
@@ -110,30 +125,91 @@ scripts/aws/deploy_ecs_fargate.sh
 
 ### Usage
 
-#### Python SDK
+#### Official SDKs
+
+ReinforceSpec provides official SDKs for Python, TypeScript, and Go.
+
+=== "Python"
 
 ```python
 import asyncio
-from loguru import logger
-from reinforce_spec import ReinforceSpec, CandidateSpec
+from reinforce_spec_sdk import ReinforceSpecClient
 
 async def main():
-    async with ReinforceSpec.from_env() as rs:
-        response = await rs.select(
+    async with ReinforceSpecClient(
+        base_url="https://api.reinforce-spec.dev",
+        api_key="your-api-key",
+    ) as client:
+        response = await client.select(
             candidates=[
-                CandidateSpec(content="# Payment API\n## Auth\n- OAuth 2.0 with mTLS\n...", spec_type="api"),
-                CandidateSpec(content='{"openapi":"3.0","info":{"title":"Payments"}}', spec_type="api"),
-                CandidateSpec(content="title: Payment SRS\nrequirements:\n  - Process cards\n...", spec_type="srs"),
-                CandidateSpec(content="# Architecture\nEvent-driven microservices with CQRS...", spec_type="architecture"),
-                CandidateSpec(content="The payment system shall handle credit card transactions...", spec_type="prd"),
+                {"content": "# Payment API\n## Auth\n- OAuth 2.0 with mTLS", "spec_type": "api"},
+                {"content": '{"openapi":"3.0","info":{"title":"Payments"}}', "spec_type": "api"},
             ],
-            customer_type="bank",
         )
-        logger.info("Best spec: {} ({})", response.selected.spec_type, response.selected.format.value)
-        logger.info("Score: {:.2f}", response.selected.composite_score)
+        print(f"Selected: index {response.selected.index}")
+        print(f"Score: {response.selected.composite_score:.2f}")
 
 asyncio.run(main())
 ```
+
+=== "TypeScript"
+
+```typescript
+import { ReinforceSpecClient } from '@reinforce-spec/sdk';
+
+const client = new ReinforceSpecClient({
+  baseUrl: process.env.REINFORCE_SPEC_BASE_URL!,
+  apiKey: process.env.REINFORCE_SPEC_API_KEY,
+});
+
+const response = await client.select({
+  candidates: [
+    { content: '# Payment API\n- OAuth 2.0', specType: 'api' },
+    { content: '{"openapi":"3.0"}', specType: 'api' },
+  ],
+});
+
+console.log(`Selected: ${response.selected.index}`);
+console.log(`Score: ${response.selected.compositeScore.toFixed(2)}`);
+```
+
+=== "Go"
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+
+    reinforce "github.com/reinforce-spec/reinforce-spec/sdks/go"
+)
+
+func main() {
+    client := reinforce.NewClient(
+        reinforce.WithBaseURL(os.Getenv("REINFORCE_SPEC_BASE_URL")),
+        reinforce.WithAPIKey(os.Getenv("REINFORCE_SPEC_API_KEY")),
+    )
+
+    resp, err := client.Select(context.Background(), &reinforce.SelectRequest{
+        Candidates: []reinforce.Candidate{
+            {Content: "# Payment API\n- OAuth 2.0", SpecType: "api"},
+            {Content: `{"openapi":"3.0"}`, SpecType: "api"},
+        },
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Printf("Selected: %d\n", resp.Selected.Index)
+    fmt.Printf("Score: %.2f\n", resp.Selected.CompositeScore)
+}
+```
+
+For detailed SDK documentation, see:
+- [Python SDK](docs/sdks/python.md)
+- [TypeScript SDK](docs/sdks/typescript.md)
+- [Go SDK](docs/sdks/go.md)
 
 #### REST API
 
@@ -313,6 +389,14 @@ make serve          # Start dev server with auto-reload
 make serve-prod     # Start production server
 ```
 
+### Integration Tests (PostgreSQL)
+
+```bash
+make docker-up  # starts postgres
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/reinforce_spec_test \
+  make test
+```
+
 ## Deploy on AWS (ECS Fargate)
 
 This repository includes an AWS deployment scaffold for production-style ECS Fargate:
@@ -325,7 +409,8 @@ The stack provisions:
 
 - Internet-facing ALB with HTTPS
 - ECS Fargate service
-- EFS mount at `/app/data` for persistent SQLite/policy state
+- EFS mount at `/app/data` for policy state
+- RDS PostgreSQL for persistence
 - Secrets Manager injection for `OPENROUTER_API_KEY`
 - CPU target-tracking autoscaling
 
@@ -390,7 +475,7 @@ reinforce_spec/
 │   ├── _ope.py              # Off-policy evaluation
 │   ├── _selector.py         # Hybrid RL + scoring selector
 │   ├── _drift.py            # Distribution drift detection
-│   ├── _persistence.py      # SQLite async storage
+│   ├── _persistence.py      # PostgreSQL async storage
 │   ├── _metrics.py          # Prometheus metrics
 │   ├── _logging.py          # Structured logging config
 │   └── _utils.py            # Utility functions
@@ -415,8 +500,7 @@ examples/
 ├── api_client.py            # HTTP API client example
 
 data/
-├── policies/                # PPO checkpoint storage
-└── reinforce_spec.db        # SQLite persistence (created at runtime)
+└── policies/                # PPO checkpoint storage
 ```
 
 ## License

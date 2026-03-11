@@ -244,7 +244,7 @@ class EnterpriseScorer:
         judge_models_by_candidate: dict[int, list[str]] = {}
 
         for result in results:
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 logger.warning("judge_call_failed | error={error}", error=str(result))
                 continue
             candidate_idx, scores, judge_model = result
@@ -296,7 +296,7 @@ class EnterpriseScorer:
             {"role": "user", "content": prompt},
         ]
 
-        content, metrics = await self._client.complete(
+        content, _metrics = await self._client.complete(
             messages=messages,
             model=judge_model,
             temperature=self._config.judge_temperature,
@@ -464,7 +464,7 @@ class EnterpriseScorer:
             if cleaned.endswith("```"):
                 cleaned = cleaned[:-3]
             data = json.loads(cleaned.strip())
-            winner = data.get("overall_winner", "A")
+            winner: str = data.get("overall_winner", "A")
             return winner.upper()
         except (json.JSONDecodeError, ValueError):
             return "A"

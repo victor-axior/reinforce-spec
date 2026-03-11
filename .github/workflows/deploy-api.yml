@@ -1,0 +1,286 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'reinforce_spec/**'
+      - 'Dockerfile'
+      - 'pyproject.toml'
+      - 'infra/aws/ecs-fargate/**'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+      image_tag:
+        description: 'Docker image tag (leave empty for git SHA)'
+        required: false
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPO: reinforce-spec
+  STACK_NAME: reinforce-spec-api
+
+jobs:
+  # ==========================================================================
+  # Pre-deployment Tests
+  # ==========================================================================
+  test:
+    name: Pre-deployment Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run linting
+        run: |
+          uv run ruff check reinforce_spec/ tests/
+          uv run ruff format --check reinforce_spec/ tests/
+
+      - name: Run type checking
+        run: uv run mypy reinforce_spec/
+
+      - name: Run unit tests
+        run: |
+          uv run pytest tests/unit/ \
+            -m "not statistical and not slow" \
+            --tb=short -q
+
+  # ==========================================================================
+  # Build and Push Docker Image
+  # ==========================================================================
+  build:
+    name: Build Docker Image
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      image_uri: ${{ steps.build.outputs.image_uri }}
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine image tag
+        id: meta
+        run: |
+          if [[ -n "${{ inputs.image_tag }}" ]]; then
+            TAG="${{ inputs.image_tag }}"
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="$(git rev-parse --short HEAD)"
+          fi
+          echo "image_tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Create ECR repository if not exists
+        run: |
+          aws ecr describe-repositories --repository-names ${{ env.ECR_REPO }} 2>/dev/null || \
+            aws ecr create-repository --repository-name ${{ env.ECR_REPO }} \
+              --image-scanning-configuration scanOnPush=true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ steps.meta.outputs.image_tag }}
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO }}:${{ steps.meta.outputs.image_tag }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO }}:latest
+          cache-from: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO }}:buildcache
+          cache-to: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO }}:buildcache,mode=max
+
+      - name: Output image URI
+        run: |
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO }}:${{ steps.meta.outputs.image_tag }}"
+          echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+          echo "Built and pushed: ${IMAGE_URI}"
+
+  # ==========================================================================
+  # Deploy to ECS Fargate
+  # ==========================================================================
+  deploy:
+    name: Deploy to ECS
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'staging' }}
+    outputs:
+      api_url: ${{ steps.outputs.outputs.api_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get ECR image URI
+        id: ecr
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          IMAGE_URI="${ACCOUNT_ID}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ needs.build.outputs.image_tag }}"
+          echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name ${{ env.STACK_NAME }} \
+            --template-file infra/aws/ecs-fargate/stack.yaml \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              ProjectName=reinforce-spec \
+              VpcId=${{ secrets.VPC_ID }} \
+              PublicSubnetIds=${{ secrets.PUBLIC_SUBNETS }} \
+              PrivateSubnetIds=${{ secrets.PRIVATE_SUBNETS }} \
+              ContainerImage=${{ steps.ecr.outputs.image_uri }} \
+              CertificateArn=${{ secrets.CERTIFICATE_ARN }} \
+              HostedZoneId=${{ secrets.HOSTED_ZONE_ID || '' }} \
+              ApiDomainName=${{ secrets.API_DOMAIN_NAME || '' }} \
+              OpenRouterApiKeySecretArn=${{ secrets.OPENROUTER_SECRET_ARN }} \
+              DatabaseSecretArn=${{ secrets.DATABASE_SECRET_ARN || '' }} \
+              DesiredCount=${{ vars.DESIRED_COUNT || '2' }} \
+              MinTaskCount=${{ vars.MIN_COUNT || '2' }} \
+              MaxTaskCount=${{ vars.MAX_COUNT || '6' }} \
+              TaskCpu=${{ vars.TASK_CPU || '1024' }} \
+              TaskMemory=${{ vars.TASK_MEMORY || '2048' }} \
+              Workers=${{ vars.WORKERS || '2' }} \
+              LogLevel=${{ vars.LOG_LEVEL || 'info' }}
+
+      - name: Wait for deployment to stabilize
+        run: |
+          echo "Waiting for ECS service to stabilize..."
+          CLUSTER_NAME=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --query "Stacks[0].Outputs[?OutputKey=='ClusterName'].OutputValue" \
+            --output text)
+          SERVICE_NAME=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --query "Stacks[0].Outputs[?OutputKey=='ServiceName'].OutputValue" \
+            --output text)
+          
+          if [[ -n "$CLUSTER_NAME" && "$CLUSTER_NAME" != "None" ]]; then
+            aws ecs wait services-stable \
+              --cluster "$CLUSTER_NAME" \
+              --services "$SERVICE_NAME" \
+              --timeout 600 || true
+          fi
+
+      - name: Get stack outputs
+        id: outputs
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --query "Stacks[0].Outputs[?OutputKey=='HttpsUrl'].OutputValue" \
+            --output text)
+          echo "api_url=${API_URL}" >> "$GITHUB_OUTPUT"
+          echo "API URL: ${API_URL}"
+
+  # ==========================================================================
+  # Post-deployment Validation
+  # ==========================================================================
+  validate:
+    name: Validate Deployment
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Health check
+        run: |
+          API_URL="${{ needs.deploy.outputs.api_url }}"
+          echo "Running health check against: ${API_URL}"
+          
+          # Wait for ALB to become healthy
+          for i in {1..30}; do
+            if curl -fsSL --max-time 10 "${API_URL}/v1/health" > /dev/null 2>&1; then
+              echo "Health check passed!"
+              curl -s "${API_URL}/v1/health" | jq .
+              exit 0
+            fi
+            echo "Attempt $i/30: waiting for service to become healthy..."
+            sleep 10
+          done
+          
+          echo "Health check failed after 30 attempts"
+          exit 1
+
+      - name: API smoke test
+        run: |
+          API_URL="${{ needs.deploy.outputs.api_url }}"
+          
+          echo "Testing OpenAPI spec endpoint..."
+          curl -fsSL "${API_URL}/openapi.json" | jq '.info.title'
+          
+          echo "Testing health endpoint details..."
+          HEALTH=$(curl -fsSL "${API_URL}/v1/health")
+          echo "$HEALTH" | jq .
+          
+          # Verify required fields
+          STATUS=$(echo "$HEALTH" | jq -r '.status')
+          if [[ "$STATUS" != "healthy" ]]; then
+            echo "Unexpected health status: $STATUS"
+            exit 1
+          fi
+          
+          echo "All smoke tests passed!"
+
+  # ==========================================================================
+  # Notify (Optional)
+  # ==========================================================================
+  notify:
+    name: Notify
+    needs: [build, deploy, validate]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Image Tag | \`${{ needs.build.outputs.image_tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| API URL | ${{ needs.deploy.outputs.api_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ inputs.environment || 'staging' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deployment Status | ${{ needs.validate.result }} |" >> $GITHUB_STEP_SUMMARY

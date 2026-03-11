@@ -38,7 +38,7 @@ responsibly:
 - Rate limiting is enforced at the middleware level
 
 ### Data Storage
-- SQLite database stores evaluation history and audit logs
+- PostgreSQL stores evaluation history and audit logs
 - Idempotency keys expire after 24 hours (configurable)
 - No PII is collected by default
 

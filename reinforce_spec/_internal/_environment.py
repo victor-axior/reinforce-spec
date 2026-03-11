@@ -324,14 +324,12 @@ class SpecSelectionEnv(gym.Env):  # type: ignore[misc]
         lines = [f"Episode {self._episode_count} | Step {self._step_count}"]
         for i, c in enumerate(self._candidates):
             marker = "→" if i == 0 else " "
-            lines.append(
-                f"  {marker} [{i}] {c.spec_type:<14} " f"composite={c.composite_score:.3f}"
-            )
+            lines.append(f"  {marker} [{i}] {c.spec_type:<14} composite={c.composite_score:.3f}")
         return "\n".join(lines)
 
 
 __all__ = [
+    "PER_CANDIDATE_FEATURES",
     "SpecSelectionEnv",
     "build_observation",
-    "PER_CANDIDATE_FEATURES",
 ]

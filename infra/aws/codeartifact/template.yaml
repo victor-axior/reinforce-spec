@@ -1,0 +1,281 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  AWS CodeArtifact infrastructure for ReinforceSpec private SDKs.
+  Creates a domain with Python (PyPI) and npm repositories for internal SDK distribution.
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: reinforce-spec
+    Description: CodeArtifact domain name
+
+  PythonRepositoryName:
+    Type: String
+    Default: python-packages
+    Description: Repository name for Python packages
+
+  NpmRepositoryName:
+    Type: String
+    Default: npm-packages
+    Description: Repository name for npm packages
+
+  AllowedAccountIds:
+    Type: CommaDelimitedList
+    Default: ''
+    Description: Additional AWS account IDs allowed to access the domain (optional)
+
+Resources:
+  # =============================================================================
+  # CodeArtifact Domain
+  # =============================================================================
+  CodeArtifactDomain:
+    Type: AWS::CodeArtifact::Domain
+    Properties:
+      DomainName: !Ref DomainName
+      Tags:
+        - Key: Project
+          Value: reinforce-spec
+        - Key: Purpose
+          Value: sdk-distribution
+
+  # =============================================================================
+  # Upstream Repositories (cache public packages)
+  # =============================================================================
+  PyPiUpstreamRepository:
+    Type: AWS::CodeArtifact::Repository
+    Properties:
+      DomainName: !GetAtt CodeArtifactDomain.Name
+      RepositoryName: pypi-store
+      Description: Upstream connection to public PyPI
+      ExternalConnections:
+        - public:pypi
+      Tags:
+        - Key: Project
+          Value: reinforce-spec
+        - Key: Type
+          Value: upstream
+
+  NpmUpstreamRepository:
+    Type: AWS::CodeArtifact::Repository
+    Properties:
+      DomainName: !GetAtt CodeArtifactDomain.Name
+      RepositoryName: npm-store
+      Description: Upstream connection to public npm registry
+      ExternalConnections:
+        - public:npmjs
+      Tags:
+        - Key: Project
+          Value: reinforce-spec
+        - Key: Type
+          Value: upstream
+
+  # =============================================================================
+  # Internal SDK Repositories
+  # =============================================================================
+  PythonRepository:
+    Type: AWS::CodeArtifact::Repository
+    DependsOn: PyPiUpstreamRepository
+    Properties:
+      DomainName: !GetAtt CodeArtifactDomain.Name
+      RepositoryName: !Ref PythonRepositoryName
+      Description: Private Python SDK packages with PyPI upstream
+      Upstreams:
+        - pypi-store
+      Tags:
+        - Key: Project
+          Value: reinforce-spec
+        - Key: Type
+          Value: internal
+
+  NpmRepository:
+    Type: AWS::CodeArtifact::Repository
+    DependsOn: NpmUpstreamRepository
+    Properties:
+      DomainName: !GetAtt CodeArtifactDomain.Name
+      RepositoryName: !Ref NpmRepositoryName
+      Description: Private npm SDK packages with npmjs upstream
+      Upstreams:
+        - npm-store
+      Tags:
+        - Key: Project
+          Value: reinforce-spec
+        - Key: Type
+          Value: internal
+
+  # =============================================================================
+  # IAM Policy for Developer Read Access
+  # =============================================================================
+  DeveloperReadPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: ReinforceSpecSDKReadAccess
+      Description: Allows developers to read/install packages from CodeArtifact
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: GetAuthToken
+            Effect: Allow
+            Action:
+              - codeartifact:GetAuthorizationToken
+            Resource:
+              - !GetAtt CodeArtifactDomain.Arn
+          - Sid: ReadFromRepositories
+            Effect: Allow
+            Action:
+              - codeartifact:ReadFromRepository
+              - codeartifact:GetRepositoryEndpoint
+              - codeartifact:ListPackages
+              - codeartifact:ListPackageVersions
+              - codeartifact:DescribePackage
+              - codeartifact:DescribePackageVersion
+              - codeartifact:GetPackageVersionReadme
+              - codeartifact:GetPackageVersionAsset
+            Resource:
+              - !GetAtt PythonRepository.Arn
+              - !GetAtt NpmRepository.Arn
+          - Sid: GetStsIdentity
+            Effect: Allow
+            Action:
+              - sts:GetServiceBearerToken
+            Resource: '*'
+            Condition:
+              StringEquals:
+                sts:AWSServiceName: codeartifact.amazonaws.com
+
+  # =============================================================================
+  # IAM Policy for CI/CD Publish Access
+  # =============================================================================
+  PublishPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: ReinforceSpecSDKPublishAccess
+      Description: Allows CI/CD to publish packages to CodeArtifact
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: GetAuthToken
+            Effect: Allow
+            Action:
+              - codeartifact:GetAuthorizationToken
+            Resource:
+              - !GetAtt CodeArtifactDomain.Arn
+          - Sid: PublishToRepositories
+            Effect: Allow
+            Action:
+              - codeartifact:PublishPackageVersion
+              - codeartifact:PutPackageMetadata
+              - codeartifact:ReadFromRepository
+              - codeartifact:GetRepositoryEndpoint
+              - codeartifact:DescribePackage
+              - codeartifact:DescribePackageVersion
+              - codeartifact:ListPackageVersions
+            Resource:
+              - !GetAtt PythonRepository.Arn
+              - !GetAtt NpmRepository.Arn
+          - Sid: GetStsIdentity
+            Effect: Allow
+            Action:
+              - sts:GetServiceBearerToken
+            Resource: '*'
+            Condition:
+              StringEquals:
+                sts:AWSServiceName: codeartifact.amazonaws.com
+
+  # =============================================================================
+  # IAM Role for GitHub Actions OIDC
+  # =============================================================================
+  GitHubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ReinforceSpecSDKPublishRole
+      Description: Role assumed by GitHub Actions for SDK publishing
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                # Update this to match your GitHub repo
+                token.actions.githubusercontent.com:sub: repo:*reinforce-spec*:*
+      ManagedPolicyArns:
+        - !Ref PublishPolicy
+      Tags:
+        - Key: Project
+          Value: reinforce-spec
+        - Key: Purpose
+          Value: github-actions
+
+Outputs:
+  DomainName:
+    Description: CodeArtifact domain name
+    Value: !GetAtt CodeArtifactDomain.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-DomainName
+
+  DomainArn:
+    Description: CodeArtifact domain ARN
+    Value: !GetAtt CodeArtifactDomain.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-DomainArn
+
+  DomainOwner:
+    Description: CodeArtifact domain owner (AWS account ID)
+    Value: !Ref AWS::AccountId
+    Export:
+      Name: !Sub ${AWS::StackName}-DomainOwner
+
+  PythonRepositoryName:
+    Description: Python repository name
+    Value: !GetAtt PythonRepository.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-PythonRepoName
+
+  PythonRepositoryArn:
+    Description: Python repository ARN
+    Value: !GetAtt PythonRepository.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-PythonRepoArn
+
+  NpmRepositoryName:
+    Description: npm repository name
+    Value: !GetAtt NpmRepository.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-NpmRepoName
+
+  NpmRepositoryArn:
+    Description: npm repository ARN
+    Value: !GetAtt NpmRepository.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-NpmRepoArn
+
+  DeveloperPolicyArn:
+    Description: ARN of the developer read access policy
+    Value: !Ref DeveloperReadPolicy
+    Export:
+      Name: !Sub ${AWS::StackName}-DeveloperPolicyArn
+
+  PublishPolicyArn:
+    Description: ARN of the CI/CD publish access policy
+    Value: !Ref PublishPolicy
+    Export:
+      Name: !Sub ${AWS::StackName}-PublishPolicyArn
+
+  GitHubActionsRoleArn:
+    Description: ARN of the GitHub Actions role for OIDC
+    Value: !GetAtt GitHubActionsRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-GitHubActionsRoleArn
+
+  PipConfigUrl:
+    Description: pip index URL (use with codeartifact login)
+    Value: !Sub https://${DomainName}-${AWS::AccountId}.d.codeartifact.${AWS::Region}.amazonaws.com/pypi/${PythonRepositoryName}/simple/
+
+  NpmRegistryUrl:
+    Description: npm registry URL (use with codeartifact login)
+    Value: !Sub https://${DomainName}-${AWS::AccountId}.d.codeartifact.${AWS::Region}.amazonaws.com/npm/${NpmRepositoryName}/

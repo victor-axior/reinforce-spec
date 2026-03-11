@@ -92,7 +92,7 @@ class TestPPOPolicy:
         assert confidence == pytest.approx(0.6)
 
     def test_predict_action_out_of_range(self) -> None:
-        policy, mock_sb3 = _create_ppo_policy()
+        policy, _mock_sb3 = _create_ppo_policy()
         # Model returns action 5, but probs array has only 3 elements
         policy._model.predict.return_value = (np.array(5), None)
         action, confidence = policy.predict(np.zeros(10))

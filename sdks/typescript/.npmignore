@@ -1,0 +1,18 @@
+# Source
+src/
+tests/
+examples/
+
+# Config
+tsconfig.json
+tsconfig.*.json
+jest.config.ts
+.eslintrc.json
+.prettierrc.json
+.gitignore
+Makefile
+
+# Dev files
+coverage/
+*.log
+.vscode/

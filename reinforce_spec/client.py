@@ -474,7 +474,7 @@ class ReinforceSpec:
         sample_size = min(self._config.rl.batch_size, self._replay_buffer.size)
 
         # Sample from replay buffer
-        transitions, is_weights, tree_indices = self._replay_buffer.sample(sample_size)
+        transitions, _is_weights, _tree_indices = self._replay_buffer.sample(sample_size)
 
         if not transitions:
             return {"status": "empty_buffer"}

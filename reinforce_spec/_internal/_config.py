@@ -55,7 +55,7 @@ class LLMConfig(BaseSettings):
     def parse_comma_separated(cls, v: Any) -> list[str]:
         if isinstance(v, str):
             return [m.strip() for m in v.split(",") if m.strip()]
-        return v  # type: ignore[return-value]
+        return v  # type: ignore[no-any-return]
 
 
 class RLConfig(BaseSettings):
@@ -231,7 +231,7 @@ class AppConfig(BaseSettings):
                 "_env_file": env_file,
                 "_env_file_encoding": "utf-8",
             }
-            return cast(AppConfig, cast(Any, cls)(**settings_kwargs))
+            return cast("AppConfig", cast("Any", cls)(**settings_kwargs))
         except Exception as e:
             raise ConfigurationError(
                 f"Failed to load configuration: {e}. "

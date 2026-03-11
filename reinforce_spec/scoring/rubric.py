@@ -18,9 +18,9 @@ from reinforce_spec._internal._rubric import (
 )
 
 __all__ = [
+    "RUBRIC",
     "Dimension",
     "DimensionDefinition",
-    "RUBRIC",
     "ScoreCriterion",
     "format_rubric_for_prompt",
     "get_all_dimensions",

@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import traceback
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     """Lifecycle states for a queued job."""
 
     PENDING = "pending"
@@ -167,7 +167,7 @@ class JobQueue:
         while self._running:
             try:
                 job, fn, args, kwargs = await asyncio.wait_for(self._queue.get(), timeout=1.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break

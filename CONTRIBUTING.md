@@ -16,7 +16,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Install all dependencies (including dev extras)
 uv sync --all-extras
 
-# Run the test suite
+# Run the test suite (unit + property)
 uv run pytest tests/unit/ tests/property/ -q
 
 # Run linting
@@ -37,7 +37,7 @@ uv run ruff format --check reinforce_spec/ tests/
 1. **Fork** the repository and create a feature branch from `main`.
 2. **Write tests** for any new functionality in the appropriate test directory:
    - `tests/unit/` — fast, isolated unit tests
-   - `tests/integration/` — tests requiring external services (mocked)
+   - `tests/integration/` — tests requiring external services
    - `tests/behavioral/` — invariant checks
    - `tests/property/` — Hypothesis property-based tests
 3. **Ensure all tests pass**: `uv run pytest tests/unit/ tests/property/ -q`
@@ -72,6 +72,15 @@ Key packages:
 - `reinforce_spec/rl/` — Public RL API (environment, trainer, selector)
 - `reinforce_spec/server/` — FastAPI server
 - `reinforce_spec/observability/` — Metrics, experiments, audit logging
+
+## Integration Tests (PostgreSQL)
+
+Set a `TEST_DATABASE_URL` before running integration tests, for example:
+
+```bash
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/reinforce_spec_test \
+   uv run pytest tests/integration/ -q
+```
 
 ## Reporting Issues
 

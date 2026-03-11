@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from reinforce_spec._internal._persistence import Storage
 
 
 @pytest.fixture()
-async def storage(tmp_path) -> Storage:
-    """Create an in-memory-like storage with temp directory."""
-    db_path = tmp_path / "test.db"
-    store = Storage(db_path=db_path)
+async def storage() -> Storage:
+    """Create a storage instance backed by PostgreSQL.
+
+    Set TEST_DATABASE_URL to run these tests.
+    """
+    database_url = os.getenv("TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("TEST_DATABASE_URL not set")
+
+    store = Storage(database_url=database_url)
     await store.connect()
     yield store
     await store.close()
@@ -20,7 +28,7 @@ async def storage(tmp_path) -> Storage:
 @pytest.mark.asyncio()
 @pytest.mark.integration()
 class TestStorage:
-    """Test async SQLite storage."""
+    """Test async PostgreSQL storage."""
 
     async def test_save_and_get_request(self, storage: Storage) -> None:
         await storage.save_request(

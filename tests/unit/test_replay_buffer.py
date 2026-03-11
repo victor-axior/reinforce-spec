@@ -115,7 +115,7 @@ class TestPrioritizedReplayBuffer:
 
     def test_sample_from_empty_buffer(self) -> None:
         buf = PrioritizedReplayBuffer(capacity=100)
-        transitions, weights, indices = buf.sample(batch_size=5)
+        transitions, _weights, _indices = buf.sample(batch_size=5)
         assert len(transitions) == 0
 
     def test_transition_fields(self) -> None:
@@ -135,6 +135,6 @@ class TestPrioritizedReplayBuffer:
         buf = PrioritizedReplayBuffer(capacity=100)
         for _ in range(3):
             buf.add(_make_transition())
-        transitions, weights, indices = buf.sample(batch_size=10)
+        transitions, _weights, _indices = buf.sample(batch_size=10)
         # PER samples with replacement, so we get batch_size items
         assert len(transitions) == 10

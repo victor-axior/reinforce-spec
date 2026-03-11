@@ -1,0 +1,18 @@
+/* ReinforceSpec custom styles */
+
+/* Primary color adjustments */
+:root {
+  --md-primary-fg-color: #4051b5;
+  --md-primary-fg-color--light: #5c6bc0;
+  --md-primary-fg-color--dark: #303f9f;
+}
+
+/* Code block styling */
+.md-typeset code {
+  font-size: 0.85em;
+}
+
+/* Grid cards styling */
+.md-typeset .grid {
+  grid-gap: 1rem;
+}

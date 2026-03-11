@@ -18,7 +18,7 @@ def custom_openapi(app: FastAPI) -> dict[str, Any]:
     Adds x-logo and enriched metadata beyond FastAPI defaults.
     """
     if app.openapi_schema:
-        return app.openapi_schema
+        return dict(app.openapi_schema)
 
     from fastapi.openapi.utils import get_openapi
 
@@ -43,7 +43,7 @@ def custom_openapi(app: FastAPI) -> dict[str, Any]:
     }
 
     app.openapi_schema = schema
-    return schema
+    return dict(schema)
 
 
 def export_openapi_yaml(app: FastAPI, path: str = "openapi.yml") -> None:

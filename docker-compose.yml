@@ -17,8 +17,13 @@ services:
       - RS_PORT=8000
       - RS_WORKERS=${RS_WORKERS:-2}
       - RS_DATA_DIR=/app/data
+      # Use local postgres for docker-compose testing
+      - RS_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/reinforce_spec
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
-      - app-data:/app/data
+      - app-data:/app/data:rw
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health', timeout=3)\""]
@@ -42,6 +47,24 @@ services:
     restart: unless-stopped
     profiles:
       - full
+
+  # PostgreSQL for local development/testing
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=reinforce_spec
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # Optional: Prometheus for metrics scraping
   prometheus:
@@ -69,5 +92,6 @@ services:
 
 volumes:
   app-data:
+  postgres-data:
   redis-data:
   grafana-data:

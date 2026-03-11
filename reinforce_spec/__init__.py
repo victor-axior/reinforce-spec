@@ -6,30 +6,30 @@ from reinforce_spec.version import VERSION
 
 __version__ = VERSION
 __all__ = [
-    # ── Client ────────────────────────────────────────────────────────────────
-    "ReinforceSpec",
+    "CandidateSpec",
+    "ConfigurationError",
+    "Dimension",
+    "DimensionScore",
     # ── Scoring ───────────────────────────────────────────────────────────────
     "EnterpriseScorer",
-    "ScoringPreset",
-    "Dimension",
-    # ── RL ─────────────────────────────────────────────────────────────────────
-    "SpecSelectionEnv",
+    "InputValidationError",
+    "PolicyError",
     "PolicyManager",
-    # ── Types ─────────────────────────────────────────────────────────────────
-    "SpecResult",
-    "DimensionScore",
-    "ScoringWeights",
-    "CandidateSpec",
-    "SpecFormat",
-    "SelectionRequest",
-    "SelectionResponse",
-    "SelectionMethod",
+    # ── Client ────────────────────────────────────────────────────────────────
+    "ReinforceSpec",
     # ── Exceptions ────────────────────────────────────────────────────────────
     "ReinforceSpecError",
-    "InputValidationError",
     "ScoringError",
-    "PolicyError",
-    "ConfigurationError",
+    "ScoringPreset",
+    "ScoringWeights",
+    "SelectionMethod",
+    "SelectionRequest",
+    "SelectionResponse",
+    "SpecFormat",
+    # ── Types ─────────────────────────────────────────────────────────────────
+    "SpecResult",
+    # ── RL ─────────────────────────────────────────────────────────────────────
+    "SpecSelectionEnv",
     "UpstreamError",
 ]
 

@@ -22,14 +22,22 @@ Parameters:
   HostedZoneId:
     Type: String
     Default: ''
-    Description: Optional Route53 hosted zone ID for creating custom API DNS record.
+    Description: Optional existing Route53 hosted zone ID. If empty and DomainName is provided, a new hosted zone will be created.
   ApiDomainName:
     Type: String
     Default: ''
     Description: Optional custom API domain (e.g., api.example.com).
+  DomainName:
+    Type: String
+    Default: ''
+    Description: Root domain name for creating a new Route53 hosted zone (e.g., axior.dev). Leave empty to skip hosted zone creation.
   OpenRouterApiKeySecretArn:
     Type: String
     Description: Secrets Manager secret ARN containing OPENROUTER_API_KEY.
+  DatabaseSecretArn:
+    Type: String
+    Default: ''
+    Description: Secrets Manager secret ARN containing PostgreSQL DATABASE_URL (leave empty to skip).
   DesiredCount:
     Type: Number
     Default: 2
@@ -73,15 +81,33 @@ Parameters:
     MaxValue: 16
 
 Conditions:
+  CreateHostedZone: !And
+    - !Not [!Equals [!Ref DomainName, '']]
+    - !Equals [!Ref HostedZoneId, '']
+  UseExistingHostedZone: !Not [!Equals [!Ref HostedZoneId, '']]
+  HasDatabaseSecret: !Not [!Equals [!Ref DatabaseSecretArn, '']]
   CreateCustomDomainRecord: !And
-    - !Not [!Equals [!Ref HostedZoneId, '']]
     - !Not [!Equals [!Ref ApiDomainName, '']]
+    - !Or
+      - !Condition CreateHostedZone
+      - !Condition UseExistingHostedZone
 
 Resources:
+  HostedZone:
+    Type: AWS::Route53::HostedZone
+    Condition: CreateHostedZone
+    Properties:
+      Name: !Ref DomainName
+      HostedZoneConfig:
+        Comment: !Sub 'Hosted zone for ${ProjectName}'
+
   Cluster:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: !Sub '${ProjectName}-cluster'
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
 
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -147,12 +173,12 @@ Resources:
     Properties:
       FileSystemId: !Ref FileSystem
       PosixUser:
-        Uid: '999'
-        Gid: '995'
+        Uid: '10001'
+        Gid: '10001'
       RootDirectory:
         CreationInfo:
-          OwnerUid: '999'
-          OwnerGid: '995'
+          OwnerUid: '10001'
+          OwnerGid: '10001'
           Permissions: '755'
         Path: /reinforce-spec
 
@@ -227,7 +253,10 @@ Resources:
     Type: AWS::Route53::RecordSet
     Condition: CreateCustomDomainRecord
     Properties:
-      HostedZoneId: !Ref HostedZoneId
+      HostedZoneId: !If
+        - CreateHostedZone
+        - !Ref HostedZone
+        - !Ref HostedZoneId
       Name: !Ref ApiDomainName
       Type: A
       AliasTarget:
@@ -249,14 +278,22 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
       Policies:
-        - PolicyName: read-openrouter-secret
+        - PolicyName: read-secrets
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
-                Resource: !Ref OpenRouterApiKeySecretArn
+                Resource:
+                  - !Ref OpenRouterApiKeySecretArn
+              - !If
+                - HasDatabaseSecret
+                - Effect: Allow
+                  Action:
+                    - secretsmanager:GetSecretValue
+                  Resource: !Ref DatabaseSecretArn
+                - !Ref AWS::NoValue
 
   TaskRole:
     Type: AWS::IAM::Role
@@ -303,9 +340,9 @@ Resources:
               - CMD-SHELL
               - !Sub "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:${ContainerPort}/v1/health', timeout=3)\" || exit 1"
             Interval: 30
-            Timeout: 10
+            Timeout: 15
             Retries: 3
-            StartPeriod: 30
+            StartPeriod: 120
           PortMappings:
             - ContainerPort: !Ref ContainerPort
               Protocol: tcp
@@ -329,6 +366,11 @@ Resources:
           Secrets:
             - Name: OPENROUTER_API_KEY
               ValueFrom: !Ref OpenRouterApiKeySecretArn
+            - !If
+              - HasDatabaseSecret
+              - Name: RS_DATABASE_URL
+                ValueFrom: !Ref DatabaseSecretArn
+              - !Ref AWS::NoValue
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -346,17 +388,20 @@ Resources:
       TaskDefinition: !Ref TaskDefinition
       LaunchType: FARGATE
       DesiredCount: !Ref DesiredCount
-      HealthCheckGracePeriodSeconds: 60
+      HealthCheckGracePeriodSeconds: 180
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 100
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
       NetworkConfiguration:
         AwsvpcConfiguration:
-          AssignPublicIp: DISABLED
+          AssignPublicIp: ENABLED
           SecurityGroups: [!Ref ServiceSecurityGroup]
           Subnets:
-            - !Select [0, !Ref PrivateSubnetIds]
-            - !Select [1, !Ref PrivateSubnetIds]
+            - !Select [0, !Ref PublicSubnetIds]
+            - !Select [1, !Ref PublicSubnetIds]
       LoadBalancers:
         - TargetGroupArn: !Ref TargetGroup
           ContainerName: api
@@ -393,6 +438,14 @@ Outputs:
   CustomDomainUrl:
     Condition: CreateCustomDomainRecord
     Value: !Sub 'https://${ApiDomainName}'
+  HostedZoneId:
+    Condition: CreateHostedZone
+    Value: !Ref HostedZone
+    Description: Route53 Hosted Zone ID (update your domain registrar nameservers)
+  HostedZoneNameServers:
+    Condition: CreateHostedZone
+    Value: !Join [', ', !GetAtt HostedZone.NameServers]
+    Description: Nameservers to configure at your domain registrar
   ClusterName:
     Value: !Ref Cluster
   ServiceName:

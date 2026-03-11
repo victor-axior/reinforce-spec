@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 from loguru import logger
 
 from reinforce_spec._compat import require_dependency
@@ -28,8 +29,6 @@ from reinforce_spec._internal._utils import utc_now
 from reinforce_spec.types import PolicyStage
 
 if TYPE_CHECKING:
-    import numpy as np
-
     from reinforce_spec._internal._replay_buffer import Transition
 
 # ── PPO Policy ────────────────────────────────────────────────────────────────

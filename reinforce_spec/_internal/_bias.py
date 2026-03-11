@@ -219,7 +219,7 @@ def aggregate_scores_trimmed_mean(
     if len(scores_per_judge) == 1:
         return scores_per_judge[0].copy()
 
-    dimensions = set()
+    dimensions: set[str] = set()
     for s in scores_per_judge:
         dimensions.update(s.keys())
 

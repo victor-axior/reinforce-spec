@@ -6,10 +6,27 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from loguru import logger
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text
-from sqlalchemy import delete, select, update
-from sqlalchemy.dialects.postgresql import JSONB, insert as pg_insert
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    delete,
+    select,
+    update,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from reinforce_spec._internal._utils import generate_request_id, utc_now
@@ -63,7 +80,9 @@ class DimensionScore(Base):
     __tablename__ = "dimension_scores"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    spec_id: Mapped[str] = mapped_column(String, ForeignKey("candidate_specs.spec_id"), nullable=False)
+    spec_id: Mapped[str] = mapped_column(
+        String, ForeignKey("candidate_specs.spec_id"), nullable=False
+    )
     dimension: Mapped[str] = mapped_column(String, nullable=False)
     score: Mapped[float] = mapped_column(Float, nullable=False)
     justification: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -89,7 +108,9 @@ class RLEpisode(Base):
     __tablename__ = "rl_episodes"
 
     episode_id: Mapped[str] = mapped_column(String, primary_key=True)
-    request_id: Mapped[str | None] = mapped_column(String, ForeignKey("evaluation_requests.request_id"))
+    request_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("evaluation_requests.request_id")
+    )
     observation: Mapped[list[float]] = mapped_column(JSONB, nullable=False)
     action: Mapped[int] = mapped_column(Integer, nullable=False)
     reward: Mapped[float] = mapped_column(Float, nullable=False)
@@ -120,23 +141,35 @@ class Storage:
 
     def __init__(self, database_url: str) -> None:
         self._database_url = self._normalize_url(database_url)
+        self._require_ssl = self._should_require_ssl(database_url)
         self._engine: AsyncEngine | None = None
         self._sessionmaker: async_sessionmaker[AsyncSession] | None = None
 
     @staticmethod
     def _normalize_url(database_url: str) -> str:
-        if database_url.startswith("postgresql+asyncpg://"):
-            return database_url
+        # Ensure asyncpg driver prefix
         if database_url.startswith("postgresql://"):
-            return database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
         return database_url
 
+    @staticmethod
+    def _should_require_ssl(database_url: str) -> bool:
+        """Check if SSL should be required (non-localhost connections)."""
+        return "localhost" not in database_url and "127.0.0.1" not in database_url
+
     async def connect(self) -> None:
-        self._engine = create_async_engine(self._database_url, pool_pre_ping=True)
+        connect_args = {"ssl": "require"} if self._require_ssl else {}
+        self._engine = create_async_engine(
+            self._database_url,
+            pool_pre_ping=True,
+            connect_args=connect_args,
+        )
         self._sessionmaker = async_sessionmaker(self._engine, expire_on_commit=False)
         async with self._engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        logger.info("storage_connected | database_url={database_url}", database_url=self._database_url)
+        logger.info(
+            "storage_connected | database_url={database_url}", database_url=self._database_url
+        )
 
     async def close(self) -> None:
         if self._engine:
@@ -205,7 +238,7 @@ class Storage:
             stmt = delete(IdempotencyKey).where(IdempotencyKey.expires_at <= utc_now())
             result = await session.execute(stmt)
             await session.commit()
-            return result.rowcount or 0
+            return getattr(result, "rowcount", 0) or 0
 
     # ── Generation Requests ──────────────────────────────────────────────
 

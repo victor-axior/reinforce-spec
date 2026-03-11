@@ -13,7 +13,7 @@ import enum
 from dataclasses import dataclass, field
 
 
-class Dimension(str, enum.Enum):
+class Dimension(enum.StrEnum):
     """The 12 enterprise-readiness scoring dimensions."""
 
     COMPLIANCE_REGULATORY = "compliance_regulatory"

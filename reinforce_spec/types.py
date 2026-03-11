@@ -11,15 +11,17 @@ from __future__ import annotations
 
 import enum
 import re
-from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 # ── Enums ─────────────────────────────────────────────────────────────────────
 
 
-class SpecFormat(str, enum.Enum):
+class SpecFormat(enum.StrEnum):
     """Auto-detected or user-specified format of a specification."""
 
     TEXT = "text"
@@ -29,7 +31,7 @@ class SpecFormat(str, enum.Enum):
     OTHER = "other"
 
 
-class SelectionMethod(str, enum.Enum):
+class SelectionMethod(enum.StrEnum):
     """How the best spec is selected."""
 
     HYBRID = "hybrid"  # Blended RL + scoring
@@ -37,7 +39,7 @@ class SelectionMethod(str, enum.Enum):
     RL_ONLY = "rl_only"  # Pure PPO policy selection
 
 
-class CustomerType(str, enum.Enum):
+class CustomerType(enum.StrEnum):
     """Customer type presets for weight configuration."""
 
     BANK = "bank"
@@ -47,7 +49,7 @@ class CustomerType(str, enum.Enum):
     DEFAULT = "default"
 
 
-class PolicyStage(str, enum.Enum):
+class PolicyStage(enum.StrEnum):
     """Policy lifecycle stages."""
 
     CANDIDATE = "candidate"
@@ -57,7 +59,7 @@ class PolicyStage(str, enum.Enum):
     ARCHIVED = "archived"
 
 
-class DegradationLevel(str, enum.Enum):
+class DegradationLevel(enum.StrEnum):
     """Graceful degradation levels for the API."""
 
     L0_FULL = "L0_full"  # Full pipeline: multi-judge + RL

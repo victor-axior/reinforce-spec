@@ -1,0 +1,171 @@
+site_name: ReinforceSpec
+site_description: RL-optimized enterprise specification evaluator and selector
+site_url: https://docs.reinforce-spec.dev
+repo_name: reinforce-spec/reinforce-spec
+repo_url: https://github.com/reinforce-spec/reinforce-spec
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2024-2026 ReinforceSpec Team
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  language: en
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
+    - announce.dismiss
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+  - minify:
+      minify_html: true
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_heading: true
+            show_category_heading: true
+            heading_level: 3
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      repo_url_shorthand: true
+      user: reinforce-spec
+      repo: reinforce-spec
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      auto_append:
+        - docs/includes/abbreviations.md
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+      combine_header_slug: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  version:
+    provider: mike
+    default: stable
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/reinforce-spec/reinforce-spec
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/reinforce-spec/
+  analytics:
+    provider: google
+    property: G-XXXXXXXXXX
+  generator: false
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/extra.js
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - getting-started/index.md
+      - Quickstart: getting-started/quickstart.md
+      - Installation: getting-started/installation.md
+      - Authentication: getting-started/authentication.md
+  - Guides:
+      - guides/index.md
+      - Scoring Specifications: guides/scoring-specs.md
+      - Feedback Loop: guides/feedback-loop.md
+      - Best Practices: guides/best-practices.md
+      - Error Handling: guides/error-handling.md
+      - Observability: guides/observability.md
+  - API Reference:
+      - api-reference/index.md
+      - Evaluate Specs: api-reference/specs.md
+      - Submit Feedback: api-reference/feedback.md
+      - Policy Status: api-reference/policy.md
+      - Health Checks: api-reference/health.md
+      - Error Codes: api-reference/errors.md
+  - Concepts:
+      - concepts/index.md
+      - Scoring Dimensions: concepts/scoring-dimensions.md
+      - Selection Methods: concepts/selection-methods.md
+      - Multi-Judge Ensemble: concepts/multi-judge.md
+      - Idempotency: concepts/idempotency.md
+  - SDKs:
+      - sdks/index.md
+      - Python SDK: sdks/python.md
+      - TypeScript SDK: sdks/typescript.md
+      - Go SDK: sdks/go.md
+      - HTTP/REST: sdks/http.md
+  - Resources:
+      - resources/index.md
+      - Changelog: resources/changelog.md
+      - Rate Limits: resources/rate-limits.md
+      - FAQ: resources/faq.md
+      - Glossary: resources/glossary.md

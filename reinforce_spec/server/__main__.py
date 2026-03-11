@@ -3,13 +3,23 @@
 from __future__ import annotations
 
 import argparse
+import signal
 import sys
 
 from loguru import logger
 
 
+def handle_sigterm(signum: int, frame: object) -> None:
+    """Handle SIGTERM gracefully for Fargate task shutdown."""
+    logger.info("Received SIGTERM (signal {}), initiating graceful shutdown", signum)
+    sys.exit(0)
+
+
 def main() -> None:
     """Run the ReinforceSpec API server."""
+    # Register SIGTERM handler for graceful Fargate shutdown
+    signal.signal(signal.SIGTERM, handle_sigterm)
+
     parser = argparse.ArgumentParser(
         description="ReinforceSpec — RL-optimized enterprise spec server"
     )

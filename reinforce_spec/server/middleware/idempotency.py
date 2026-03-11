@@ -10,12 +10,15 @@ Requires ``IdempotencyStore`` to be attached at ``app.state.idempotency``.
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncIterator, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import Request, Response
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import JSONResponse
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 
 class IdempotencyMiddleware(BaseHTTPMiddleware):
@@ -58,7 +61,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 body = b""
                 maybe_iterator = getattr(response, "body_iterator", None)
                 if maybe_iterator is not None:
-                    body_iterator = cast(AsyncIterator[Any], maybe_iterator)
+                    body_iterator = cast("AsyncIterator[Any]", maybe_iterator)
                     async for chunk in body_iterator:
                         if isinstance(chunk, bytes):
                             body += chunk

@@ -151,7 +151,9 @@ class DriftDetector:
     @property
     def has_sufficient_data(self) -> bool:
         """Return ``True`` when enough data exists for drift checks."""
-        return self._reference is not None and len(self._reference) >= 30 and len(self._current) >= 30
+        return (
+            self._reference is not None and len(self._reference) >= 30 and len(self._current) >= 30
+        )
 
     def _compute_psi(
         self,

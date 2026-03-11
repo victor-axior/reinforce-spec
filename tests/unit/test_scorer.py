@@ -123,7 +123,7 @@ class TestParseScores:
 
     def test_numeric_dim_values_parsed(self) -> None:
         """Dimension values that are plain numbers (not dicts) are accepted."""
-        evaluations = {dim: 3.5 for dim in ALL_DIM_NAMES}
+        evaluations = dict.fromkeys(ALL_DIM_NAMES, 3.5)
         resp = json.dumps({"evaluations": evaluations})
         scores = EnterpriseScorer._parse_scores(resp)
         for v in scores.values():
